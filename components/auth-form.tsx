@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useState, type FormEvent } from "react";
 import { getSupabaseClient } from "../lib/supabase/client";
 
@@ -121,7 +120,6 @@ export default function AuthForm() {
           {busyAction === "email" ? "Please wait…" : mode === "sign_up" ? "Create your account" : "Sign in"} <span aria-hidden="true">↗</span>
         </button>
       </form>
-      <p className="auth-privacy-note">Your account is secured by Supabase. <Link href="/settings/supabase">Connection setup</Link></p>
     </div>
   );
 }
