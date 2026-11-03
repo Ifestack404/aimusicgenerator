@@ -4,6 +4,7 @@ import { createSupabaseServerClient } from "../../../lib/supabase/server";
 export async function GET(request: NextRequest) {
   const providerError = request.nextUrl.searchParams.get("error");
   if (providerError) {
+    console.error("Supabase social authentication provider returned an error.", providerError);
     return NextResponse.redirect(new URL("/auth?error=oauth", request.url));
   }
 
