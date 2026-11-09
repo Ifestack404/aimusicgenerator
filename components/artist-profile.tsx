@@ -84,6 +84,7 @@ export default function ArtistProfile() {
           }
           return;
         }
+        if (active) setUserId(user.id);
 
         const { data, error } = await supabase
           .from("artist_profiles")
@@ -107,7 +108,6 @@ export default function ArtistProfile() {
         }
 
         if (active) {
-          setUserId(user.id);
           if (data) {
             const row = data as ProfileRow;
             setProfile(mapProfile(row, avatarUrl));
@@ -298,7 +298,7 @@ export default function ArtistProfile() {
       <section className="section-wrap route-intro profile-route-intro" aria-labelledby="profile-page-title">
         <p className="eyebrow"><span className="eyebrow-dot" /> YOUR ARTIST IDENTITY</p>
         <h1 id="profile-page-title">Make yourself <span>known.</span></h1>
-        <p>Give your music a name and a story. Your profile is securely linked to your account.</p>
+        <p>{loadError ? "You’re signed in, but artist profile storage needs to be set up." : "Give your music a name and a story. Your profile is securely linked to your account."}</p>
       </section>
       <section className="section-wrap profile-section" aria-label="Artist profile settings">
         <div className="profile-local-notice">
