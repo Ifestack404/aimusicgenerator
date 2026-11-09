@@ -46,5 +46,5 @@ export function getSupabaseConfig(): SupabaseConfig | null {
 }
 
 export function getSupabaseConfigErrorMessage() {
-  return "Set the project URL and a publishable/anon key in .env.local. Never use a secret or service-role key in a NEXT_PUBLIC_ variable, then restart the dev server.";
+  return "Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY in .env.local for local development, or in your hosting provider's environment settings for a deployed site. Rebuild or redeploy after changing them. Never use a secret or service-role key in a NEXT_PUBLIC_ variable.";
 }
