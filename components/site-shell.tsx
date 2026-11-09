@@ -46,6 +46,10 @@ function Header() {
       const supabase = getSupabaseClient();
       void supabase.auth.getUser().then(({ data, error }) => {
         if (error) {
+          if (error.name === "AuthSessionMissingError") {
+            if (active) setAccountEmail(null);
+            return;
+          }
           console.error("Unable to read the current Soundforge account.", error);
           return;
         }

@@ -4,13 +4,12 @@ import { useEffect, useState, type FormEvent } from "react";
 import { getSupabaseClient } from "../lib/supabase/client";
 
 type AuthMode = "sign_in" | "sign_up";
-type SocialProvider = "google" | "github" | "twitter";
+type SocialProvider = "google" | "github";
 type AuthAction = "email" | SocialProvider;
 
 const socialProviders: { id: SocialProvider; label: string }[] = [
   { id: "google", label: "Google" },
   { id: "github", label: "GitHub" },
-  { id: "twitter", label: "Twitter" },
 ];
 
 export default function AuthForm() {
