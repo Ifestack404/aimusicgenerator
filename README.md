@@ -1,6 +1,6 @@
 # Soundforge AI
 
-Soundforge AI is a Next.js App Router project for an AI music creation studio. Its visual direction pairs glassmorphism with a warm recording-studio atmosphere, restrained green accents, and tactile creative controls. Visitors can switch between light and dark themes; their choice is saved in browser storage. Supabase authentication and artist-profile persistence are implemented. Signed-in users can save song ideas and lyrics and organize them into albums. Real audio generation, playback, and payments are not connected yet.
+Soundforge AI is a Next.js App Router project for an AI music creation studio. Its visual direction pairs glassmorphism with a warm recording-studio atmosphere, restrained green accents, and tactile creative controls. Visitors can switch between light and dark themes; their choice is saved in browser storage. Supabase authentication, artist profiles, and a private song and album library are implemented. Signed-in users can generate songs with ElevenLabs Music, preview and download the audio, and save it to their library. The provider API key and database/storage migrations must be configured before generation can work. Payments are not connected.
 
 ## Run locally
 
@@ -13,11 +13,11 @@ Open [http://localhost:3000](http://localhost:3000) in your browser. To check a 
 ## Pages and project structure
 
 - `/` (`app/page.tsx`) — branded homepage and links into the studio, explore, and pricing pages.
-- `/create` (`app/create/page.tsx`) — interactive music-creation demo.
+- `/create` (`app/create/page.tsx`) — authenticated music studio for generating, previewing, downloading, and saving songs.
 - `/library` (`app/library/page.tsx`) — private saved song projects and album organization.
 - `/explore` (`app/explore/page.tsx`) — featured genres and illustrative tracks. A selected genre carries through to the create page.
 - `/pricing` (`app/pricing/page.tsx`) — non-active pricing preview.
-- `/profile` (`app/profile/page.tsx`) — artist profile editor with browser-local persistence.
+- `/profile` (`app/profile/page.tsx`) — artist profile editor backed by Supabase.
 - `/auth` (`app/auth/page.tsx`) — email/password sign-up and sign-in.
 - `/settings/supabase` (`app/settings/supabase/page.tsx`) — Supabase connection setup and health check.
 - `app/layout.tsx` — shared app layout and page metadata.
@@ -34,17 +34,19 @@ Open [http://localhost:3000](http://localhost:3000) in your browser. To check a 
 - `supabase/migrations/20261110000000_music_library_and_albums.sql` — private song project/lyrics and album tables with per-user RLS.
 - `lib/supabase/config.ts` — validated project URL and publishable-key configuration.
 - `app/api/supabase/status/route.ts` — server-side Supabase API connection check.
-- `.env.example` — template for local Supabase credentials; copy to `.env.local`.
+- `app/api/music/generate/route.ts` — authenticated server-side ElevenLabs Music API integration.
+- `supabase/migrations/20261110000001_generated_audio_storage.sql` — private bucket and per-user policies for generated audio.
+- `.env.example` — template for local Supabase credentials and the server-only music provider key; copy to `.env.local`.
 - `lib/music-options.ts` — shared genre options for the explore and create pages.
 - `tsconfig.json` — strict TypeScript configuration.
 - `next-env.d.ts` — Next.js TypeScript declarations.
 - `PROJECT_STATUS.md` — current progress, known limitations, and recommended next stage.
 
-## Current prototype behavior
+## Music generation setup
 
-The creation modes, genre and mood controls, vocal options, duration controls, prompt character count, advanced settings, mobile navigation, and form validation are interactive. Signed-in users can save the prompt or lyrics as a private song project and organize saved projects into albums. The preview action remains a demo: no audio is generated, and there are no audio files to play or download.
+Run both `supabase/migrations/20261110000000_music_library_and_albums.sql` and `supabase/migrations/20261110000001_generated_audio_storage.sql` in the Supabase SQL Editor for the project configured in the app. Then set `ELEVENLABS_API_KEY` as a server-only environment variable in Vercel (never prefix it with `NEXT_PUBLIC_`) and redeploy. Signed-in users can generate songs from `/create`, preview or download the result, and find saved audio in `/library`.
 
-The private music library and albums require running `supabase/migrations/20261110000000_music_library_and_albums.sql` in the same Supabase project configured for the app. After the migration, sign in, save an idea from `/create`, then create albums and organize projects at `/library`.
+Generation uses ElevenLabs Music v2.5 and paid provider credits. Review ElevenLabs pricing and configure a quota before generating. User-supplied lyrics are sent only in Lyrics to music mode. The API route allows up to five minutes for provider generation; the hosting plan must support that duration. Locally, add the key to `.env.local`.
 
 Pricing is a non-active preview. Checkout and account billing are not connected.
 
@@ -52,7 +54,7 @@ Artist profiles require a signed-in account and the SQL migration below. The pro
 
 Existing Google accounts are not automatically populated in `artist_profiles` by the signup trigger. Once the migration is applied, the profile editor can load the Google name/photo as defaults; enter a handle and any other details, then save them. To store the avatar in the private bucket, use **Upload image** and then save the profile.
 
-To enable the private music library and albums, run `supabase/migrations/20261110000000_music_library_and_albums.sql` in the same Supabase SQL Editor. On `/create`, enter a title and prompt or lyrics, then choose **Save idea**. On `/library`, create albums and use each saved project's album selector to organize tracks. Audio generation is intentionally unavailable until a licensed generation provider is configured; the library currently stores project data and lyrics, not audio.
+To save a song idea without generating audio, enter a title and prompt or lyrics on `/create`, then choose **Save idea**. On `/library`, create albums and use each saved project's album selector to organize tracks.
 
 The homepage hero uses an open, layered soundscape waveform aligned with the hero copy instead of a boxed artwork card.
 

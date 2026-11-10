@@ -15,6 +15,8 @@ type MusicProject = {
   vocal: string;
   duration_seconds: number;
   status: string;
+  audio_path: string | null;
+  audio_url: string | null;
   created_at: string;
 };
 
@@ -77,7 +79,7 @@ export default function MusicLibrary() {
     const [projectResult, albumResult, trackResult] = await Promise.all([
       supabase
         .from("music_projects")
-        .select("id, title, mode, prompt, lyrics, genre, mood, vocal, duration_seconds, status, created_at")
+        .select("id, title, mode, prompt, lyrics, genre, mood, vocal, duration_seconds, status, audio_path, created_at")
         .eq("user_id", ownerId)
         .order("created_at", { ascending: false })
         .abortSignal(requestSignal),
@@ -101,7 +103,23 @@ export default function MusicLibrary() {
       throw firstError;
     }
 
-    setProjects((projectResult.data ?? []) as MusicProject[]);
+    const savedProjects = (projectResult.data ?? []) as Omit<MusicProject, "audio_url">[];
+    const projectsWithAudio = savedProjects.filter((project) => project.audio_path);
+    const audioUrlByPath = new Map<string, string>();
+    if (projectsWithAudio.length) {
+      const { data: signedAudio, error: signedAudioError } = await supabase.storage
+        .from("music-audio")
+        .createSignedUrls(projectsWithAudio.map((project) => project.audio_path as string), 3600);
+      if (signedAudioError) throw signedAudioError;
+      for (const item of signedAudio ?? []) {
+        if (item.path && item.signedUrl) audioUrlByPath.set(item.path, item.signedUrl);
+      }
+    }
+
+    setProjects(savedProjects.map((project) => ({
+      ...project,
+      audio_url: project.audio_path ? audioUrlByPath.get(project.audio_path) ?? null : null,
+    })));
     setAlbums((albumResult.data ?? []) as MusicAlbum[]);
     setAlbumTracks((trackResult.data ?? []) as AlbumTrack[]);
   }, []);
@@ -296,7 +314,7 @@ export default function MusicLibrary() {
       <section className="section-wrap route-intro library-intro" aria-labelledby="library-title">
         <p className="eyebrow"><span className="eyebrow-dot" /> YOUR MUSIC WORKSPACE</p>
         <h1 id="library-title">Your songs, <span>in one place.</span></h1>
-        <p>Keep song ideas and lyrics together, then organize projects into albums. Audio generation is not connected yet.</p>
+        <p>Generate songs in the studio, then keep your ideas, audio, and albums together in your private library.</p>
       </section>
       <section className="section-wrap library-section" aria-label="Music library">
         <div className="library-toolbar">
@@ -370,6 +388,7 @@ export default function MusicLibrary() {
                       <p className="library-project-meta">{[project.genre, project.mood, `${project.duration_seconds}s`].filter(Boolean).join(" · ")}</p>
                       {project.prompt && <p className="library-project-prompt">{project.prompt}</p>}
                       {project.lyrics && <details className="library-lyrics"><summary>View lyrics</summary><pre>{project.lyrics}</pre></details>}
+                      {project.audio_url && <audio className="library-audio-player" controls preload="none" src={project.audio_url}>Your browser does not support audio playback.</audio>}
                       <div className="library-project-actions">
                         <label className="library-album-select">
                           <span>Add to album</span>

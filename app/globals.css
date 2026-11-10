@@ -787,7 +787,7 @@ a {
   color: #ff9a85;
 }
 
-.form-feedback.is-demo {
+.form-feedback.is-success {
   color: #c9dfa9;
 }
 
@@ -3411,7 +3411,7 @@ a {
   color: #a63e2e;
 }
 
-:root[data-theme="light"] .form-feedback.is-demo,
+:root[data-theme="light"] .form-feedback.is-success,
 :root[data-theme="light"] .profile-feedback.is-success {
   color: #486821;
 }
@@ -3654,6 +3654,30 @@ a {
   font-size: 11px;
   line-height: 1.7;
   white-space: pre-wrap;
+}
+
+.library-audio-player,
+.generated-audio audio {
+  width: 100%;
+  min-width: 0;
+  accent-color: var(--accent);
+}
+
+.generated-audio {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.generated-audio a {
+  width: fit-content;
+  color: var(--accent);
+  font-size: 11px;
+  text-decoration: none;
+}
+
+.generated-audio a:hover {
+  text-decoration: underline;
 }
 
 .library-project-actions {

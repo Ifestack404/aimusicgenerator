@@ -19,7 +19,7 @@ const modes = [
 ] as const;
 
 type Mode = (typeof modes)[number]["id"];
-type Feedback = { type: "error" | "demo"; message: string };
+type Feedback = { type: "error" | "success"; message: string };
 type Track = {
   title: string;
   artist: string;
@@ -214,7 +214,7 @@ export function StudioForm({
   const [saveTitle, setSaveTitle] = useState("");
   const [isSavingProject, setIsSavingProject] = useState(false);
   const [accountId, setAccountId] = useState<string | null>(null);
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [generatedAudioUrl, setGeneratedAudioUrl] = useState<string | null>(null);
   const copy = promptCopy[mode];
 
   useEffect(() => {
@@ -234,9 +234,14 @@ export function StudioForm({
     return () => {
       active = false;
       subscription.unsubscribe();
-      if (timer.current) clearTimeout(timer.current);
     };
   }, []);
+
+  useEffect(() => {
+    return () => {
+      if (generatedAudioUrl) URL.revokeObjectURL(generatedAudioUrl);
+    };
+  }, [generatedAudioUrl]);
 
   function changeMode(nextMode: Mode) {
     setMode(nextMode);
@@ -245,25 +250,104 @@ export function StudioForm({
     setFeedback(null);
   }
 
-  function handleGenerate(event: FormEvent<HTMLFormElement>) {
+  async function handleGenerate(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (isGenerating) return;
 
+    if (!accountId) {
+      setFeedback({ type: "error", message: "Sign in before generating and saving a song." });
+      return;
+    }
+
     if (!prompt.trim()) {
-      setFeedback({ type: "error", message: "Add a few words about your idea to continue." });
+      setFeedback({ type: "error", message: mode === "lyrics" ? "Add your lyrics before generating a song." : "Add a few words about your idea to continue." });
       document.getElementById("music-prompt")?.focus();
       return;
     }
 
     setFeedback(null);
     setIsGenerating(true);
-    timer.current = setTimeout(() => {
-      setIsGenerating(false);
-      setFeedback({
-        type: "demo",
-        message: "Demo flow complete. No audio was generated or saved because the music engine is not connected.",
+    try {
+      const durationSeconds = Number.parseInt(duration, 10);
+      const response = await fetch("/api/music/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          mode,
+          prompt: mode === "lyrics" ? "" : prompt.trim(),
+          lyrics: mode === "lyrics" ? prompt.trim() : "",
+          genre: selectedGenre,
+          mood,
+          vocal,
+          durationSeconds,
+          instrument,
+          creativity,
+        }),
+        signal: AbortSignal.timeout(250000),
       });
-    }, 1100);
+
+      if (!response.ok) {
+        const result = await response.json().catch(() => null) as { error?: string } | null;
+        throw new Error(result?.error || "The song could not be generated. Please try again.");
+      }
+
+      const audioBlob = await response.blob();
+      const nextAudioUrl = URL.createObjectURL(audioBlob);
+      setGeneratedAudioUrl((currentUrl) => {
+        if (currentUrl) URL.revokeObjectURL(currentUrl);
+        return nextAudioUrl;
+      });
+
+      const supabase = getSupabaseClient();
+      const projectId = crypto.randomUUID();
+      const title = saveTitle.trim() || `${selectedGenre} song`;
+      const audioPath = `${accountId}/${projectId}.mp3`;
+      const { error: uploadError } = await supabase.storage
+        .from("music-audio")
+        .upload(audioPath, audioBlob, { contentType: "audio/mpeg", upsert: false });
+      if (uploadError) {
+        if (uploadError.message.toLowerCase().includes("bucket")) {
+          throw new Error("Song generated, but audio storage is not set up. Run supabase/migrations/20261110000001_generated_audio_storage.sql, then try again.");
+        }
+        throw new Error(`Song generated, but could not save its audio. ${uploadError.message}`);
+      }
+
+      const { error: saveError } = await supabase.from("music_projects").insert({
+        id: projectId,
+        user_id: accountId,
+        title,
+        mode,
+        prompt: mode === "lyrics" ? "" : prompt.trim(),
+        lyrics: mode === "lyrics" ? prompt.trim() : "",
+        genre: selectedGenre,
+        mood,
+        vocal,
+        duration_seconds: durationSeconds,
+        status: "generated",
+        audio_path: audioPath,
+      });
+      if (saveError) {
+        const { error: cleanupError } = await supabase.storage.from("music-audio").remove([audioPath]);
+        if (cleanupError) {
+          console.error("Generated audio could not be removed after the project save failed.", cleanupError);
+        }
+        if (saveError.code === "42P01" || saveError.code === "PGRST205") {
+          throw new Error("Song generated, but the music library is not set up. Run supabase/migrations/20261110000000_music_library_and_albums.sql, then try again.");
+        }
+        throw new Error(`Song generated, but could not save it to your library. ${saveError.message}`);
+      }
+
+      setFeedback({ type: "success", message: "Your song was generated and saved to your private library." });
+      setSaveTitle(title);
+    } catch (error: unknown) {
+      console.error("Soundforge music generation failed.", error);
+      setFeedback({
+        type: "error",
+        message: error instanceof Error ? error.message : "The song could not be generated. Please try again.",
+      });
+    } finally {
+      setIsGenerating(false);
+    }
   }
 
   async function handleSaveProject() {
@@ -302,7 +386,7 @@ export function StudioForm({
         throw error;
       }
       setSaveTitle("");
-      setFeedback({ type: "demo", message: "Song idea saved to your private library. No audio was generated." });
+      setFeedback({ type: "success", message: "Song idea saved to your private library. No audio was generated." });
     } catch (error: unknown) {
       console.error("Unable to save the song project.", error);
       setFeedback({
@@ -321,7 +405,7 @@ export function StudioForm({
           <p className="eyebrow"><span className="eyebrow-dot" /> YOUR CREATIVE STUDIO</p>
           <h2 id="studio-title">Start with a feeling.</h2>
         </div>
-        <div className="demo-badge"><span /> DEMO MODE <span className="demo-separator">/</span> NO MUSIC ENGINE</div>
+        <div className="demo-badge"><span /> ELEVENLABS MUSIC <span className="demo-separator">/</span> PAID CREDITS MAY APPLY</div>
       </div>
 
       <form className="studio-panel" onSubmit={handleGenerate} noValidate>
@@ -331,7 +415,7 @@ export function StudioForm({
           <textarea
             id="music-prompt"
             value={prompt}
-            maxLength={500}
+            maxLength={mode === "lyrics" ? 5000 : 500}
             onChange={(event) => {
               setPrompt(event.target.value);
               if (feedback?.type === "error") setFeedback(null);
@@ -342,8 +426,8 @@ export function StudioForm({
             aria-invalid={feedback?.type === "error" && !prompt.trim()}
           />
           <div className="prompt-meta" id="prompt-meta">
-            <span>Specific details help shape your direction.</span>
-            <span>{prompt.length} / 500</span>
+            <span>{mode === "lyrics" ? "Use up to 30 lyric lines, 200 characters per line." : "Specific details help shape your direction."}</span>
+            <span>{prompt.length} / {mode === "lyrics" ? 5000 : 500}</span>
           </div>
         </div>
 
@@ -359,7 +443,10 @@ export function StudioForm({
                   key={option}
                   className={`choice-button${vocal === option ? " is-selected" : ""}`}
                   aria-pressed={vocal === option}
-                  disabled={mode === "instrumental" && option !== "No vocals"}
+                  disabled={
+                    (mode === "instrumental" && option !== "No vocals")
+                    || (mode === "lyrics" && option === "No vocals")
+                  }
                   onClick={() => setVocal(option)}
                 >
                   {option}
@@ -432,15 +519,21 @@ export function StudioForm({
           </div>
           <button className="generate-button" type="submit" disabled={isGenerating}>
             {isGenerating ? (
-              <><span className="loading-spinner" aria-hidden="true" /> Running demo…</>
+            <><span className="loading-spinner" aria-hidden="true" /> Generating song…</>
             ) : (
-              <>Preview demo flow <Icon name="arrow" size={17} /></>
+            <>Generate song <Icon name="arrow" size={17} /></>
             )}
           </button>
         </div>
         <p className={`form-feedback${feedback ? ` is-${feedback.type}` : ""}`} aria-live="polite" role="status">
-          {feedback?.message || "This is a demo interface. It does not create, play, or save music."}
+          {feedback?.message || "Song generation uses ElevenLabs and may consume paid credits. Sign in to generate and save songs."}
         </p>
+        {generatedAudioUrl && (
+          <div className="generated-audio" aria-label="Generated song">
+            <audio controls src={generatedAudioUrl} />
+            <a href={generatedAudioUrl} download={`${(saveTitle || "soundforge-song").replace(/[^\w-]+/g, "-")}.mp3`}>Download generated song</a>
+          </div>
+        )}
       </form>
     </section>
   );
@@ -626,7 +719,7 @@ export function Pricing() {
           <ul>
             <li>Explore creative modes</li>
             <li>Shape a musical prompt</li>
-            <li>Try the demo interface</li>
+            <li>Generate songs from prompts or lyrics</li>
           </ul>
           <Link className="price-link" href="/create">Start with an idea <Icon name="arrow" size={16} /></Link>
         </article>
@@ -659,7 +752,7 @@ export default function StudioHome() {
             Find the sound that makes it yours.
           </p>
           <Link className="hero-cta" href="/create">Make your first idea <Icon name="arrow" size={17} /></Link>
-          <p className="hero-footnote"><span /> A creative studio in demo mode</p>
+          <p className="hero-footnote"><span /> AI music generation powered by ElevenLabs</p>
         </div>
         <SoundArtwork />
       </section>
@@ -705,7 +798,7 @@ export function StudioCreate({ initialGenre = "Afrobeats" }: { initialGenre?: st
       <section className="section-wrap route-intro" aria-labelledby="create-title">
         <p className="eyebrow"><span className="eyebrow-dot" /> THE CREATIVE STUDIO</p>
         <h1 id="create-title">Your idea, <span>your sound.</span></h1>
-        <p>Choose a starting point, describe the feeling, and shape the details. This studio is a demo; it does not generate or save audio.</p>
+        <p>Write lyrics or describe a sound, choose the musical direction, and generate a full song. Generated audio is saved to your private library.</p>
       </section>
       <StudioForm selectedGenre={selectedGenre} setSelectedGenre={setSelectedGenre} />
     </main>
