@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { getSupabaseClient } from "../lib/supabase/client";
 
@@ -35,6 +35,9 @@ type AlbumTrack = {
 
 const LIBRARY_MIGRATION =
   "Run supabase/migrations/20261110000000_music_library_and_albums.sql in the Supabase SQL Editor, then reload this page.";
+const AUDIO_STORAGE_MIGRATION =
+  "Run supabase/migrations/20261110000001_generated_audio_storage.sql in the Supabase SQL Editor, then reload this page.";
+const MAX_AUDIO_FILE_BYTES = 10 * 1024 * 1024;
 
 function isMissingLibrary(error: { code?: string; message?: string }) {
   return error.code === "42P01" || error.code === "PGRST205" || error.message?.includes("Could not find the table");
@@ -60,6 +63,36 @@ async function waitForAuth<T>(request: Promise<T>) {
   }
 }
 
+function readAudioDuration(file: File): Promise<number> {
+  const objectUrl = URL.createObjectURL(file);
+
+  return new Promise((resolve, reject) => {
+    const audio = new Audio();
+    const cleanup = () => {
+      audio.onloadedmetadata = null;
+      audio.onerror = null;
+      audio.removeAttribute("src");
+      URL.revokeObjectURL(objectUrl);
+    };
+
+    audio.preload = "metadata";
+    audio.onloadedmetadata = () => {
+      const duration = audio.duration;
+      cleanup();
+      if (!Number.isFinite(duration) || duration < 1 || duration > 3600) {
+        reject(new Error("Audio must be between 1 second and 60 minutes long."));
+        return;
+      }
+      resolve(Math.ceil(duration));
+    };
+    audio.onerror = () => {
+      cleanup();
+      reject(new Error("Could not read this MP3 file. Please try another download."));
+    };
+    audio.src = objectUrl;
+  });
+}
+
 export default function MusicLibrary() {
   const [userId, setUserId] = useState<string | null>(null);
   const [projects, setProjects] = useState<MusicProject[]>([]);
@@ -72,6 +105,10 @@ export default function MusicLibrary() {
   const [albumTitle, setAlbumTitle] = useState("");
   const [albumDescription, setAlbumDescription] = useState("");
   const [busyProjectId, setBusyProjectId] = useState<string | null>(null);
+  const [uploadTitle, setUploadTitle] = useState("");
+  const [audioFile, setAudioFile] = useState<File | null>(null);
+  const [isUploadingAudio, setIsUploadingAudio] = useState(false);
+  const uploadFormRef = useRef<HTMLFormElement>(null);
 
   const loadLibrary = useCallback(async (ownerId: string) => {
     const supabase = getSupabaseClient();
@@ -201,6 +238,100 @@ export default function MusicLibrary() {
     }
   }
 
+  async function importAudio(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!userId || isUploadingAudio) return;
+
+    const title = uploadTitle.trim();
+    if (!title) {
+      setFeedback("Add a title for this song.");
+      return;
+    }
+    if (!audioFile) {
+      setFeedback("Choose an MP3 file to import.");
+      return;
+    }
+    if (!audioFile.name.toLowerCase().endsWith(".mp3") || (audioFile.type && audioFile.type !== "audio/mpeg")) {
+      setFeedback("Choose an MP3 audio file.");
+      return;
+    }
+    if (audioFile.size > MAX_AUDIO_FILE_BYTES) {
+      setFeedback("This MP3 is larger than 10 MB. Choose a smaller file.");
+      return;
+    }
+
+    setIsUploadingAudio(true);
+    setFeedback("");
+    let audioPath: string | null = null;
+    let savedToLibrary = false;
+
+    try {
+      const durationSeconds = await readAudioDuration(audioFile);
+      const projectId = crypto.randomUUID();
+      audioPath = `${userId}/${projectId}.mp3`;
+      const supabase = getSupabaseClient();
+      const { error: uploadError } = await supabase.storage
+        .from("music-audio")
+        .upload(audioPath, audioFile, { contentType: "audio/mpeg", upsert: false });
+
+      if (uploadError) {
+        if (uploadError.message.toLowerCase().includes("bucket")) {
+          throw new Error(AUDIO_STORAGE_MIGRATION);
+        }
+        throw uploadError;
+      }
+
+      const { error: projectError } = await supabase.from("music_projects").insert({
+        id: projectId,
+        user_id: userId,
+        title,
+        mode: "text",
+        prompt: "",
+        lyrics: "",
+        genre: "Imported",
+        mood: "",
+        vocal: "Uploaded audio",
+        duration_seconds: durationSeconds,
+        status: "generated",
+        audio_path: audioPath,
+      });
+
+      if (projectError) {
+        const { error: cleanupError } = await supabase.storage.from("music-audio").remove([audioPath]);
+        if (cleanupError) {
+          console.error("Imported audio could not be removed after the library save failed.", cleanupError);
+        }
+        audioPath = null;
+        if (isMissingLibrary(projectError)) throw new Error(LIBRARY_MIGRATION);
+        throw projectError;
+      }
+
+      savedToLibrary = true;
+      uploadFormRef.current?.reset();
+      setUploadTitle("");
+      setAudioFile(null);
+
+      try {
+        await loadLibrary(userId);
+        setFeedback("MP3 imported and saved to your private library.");
+      } catch (error: unknown) {
+        console.error("The imported song was saved, but the library could not refresh.", error);
+        setFeedback("The MP3 was saved, but the library could not refresh. Reload this page to see it.");
+      }
+    } catch (error: unknown) {
+      if (audioPath && !savedToLibrary) {
+        const { error: cleanupError } = await getSupabaseClient().storage.from("music-audio").remove([audioPath]);
+        if (cleanupError) {
+          console.error("Imported audio could not be removed after an import failure.", cleanupError);
+        }
+      }
+      console.error("Unable to import an audio file into the music library.", error);
+      setFeedback(error instanceof Error ? error.message : "Could not import this song. Please try again.");
+    } finally {
+      setIsUploadingAudio(false);
+    }
+  }
+
   async function deleteAlbum(albumId: string) {
     if (!userId) return;
     const album = albums.find((item) => item.id === albumId);
@@ -278,9 +409,24 @@ export default function MusicLibrary() {
         .eq("id", projectId)
         .eq("user_id", userId);
       if (error) throw error;
+
+      let audioCleanupFailed = false;
+      if (project.audio_path) {
+        const { error: audioDeleteError } = await getSupabaseClient()
+          .storage
+          .from("music-audio")
+          .remove([project.audio_path]);
+        if (audioDeleteError) {
+          audioCleanupFailed = true;
+          console.error("The deleted song's audio could not be removed from storage.", audioDeleteError);
+        }
+      }
+
       setProjects((current) => current.filter((project) => project.id !== projectId));
       setAlbumTracks((current) => current.filter((track) => track.project_id !== projectId));
-      setFeedback("Song project deleted.");
+      setFeedback(audioCleanupFailed
+        ? "Song project deleted, but its audio file could not be removed from storage."
+        : "Song project deleted.");
     } catch (error: unknown) {
       console.error("Unable to delete a song project.", error);
       setFeedback(error instanceof Error ? error.message : "Could not delete this song project.");
@@ -314,7 +460,7 @@ export default function MusicLibrary() {
       <section className="section-wrap route-intro library-intro" aria-labelledby="library-title">
         <p className="eyebrow"><span className="eyebrow-dot" /> YOUR MUSIC WORKSPACE</p>
         <h1 id="library-title">Your songs, <span>in one place.</span></h1>
-        <p>Generate songs in the studio, then keep your ideas, audio, and albums together in your private library.</p>
+        <p>Import downloaded songs or generate in the studio, then keep your ideas, audio, and albums together in your private library.</p>
       </section>
       <section className="section-wrap library-section" aria-label="Music library">
         <div className="library-toolbar">
@@ -371,9 +517,44 @@ export default function MusicLibrary() {
 
           <section className="library-projects" aria-labelledby="projects-title">
             <div className="library-section-heading">
-              <div><p className="eyebrow">IDEAS IN PROGRESS</p><h2 id="projects-title">Song projects</h2></div>
+              <div><p className="eyebrow">YOUR MUSIC</p><h2 id="projects-title">Song projects</h2></div>
               <span className="library-count">{projects.length}</span>
             </div>
+            <form ref={uploadFormRef} className="library-create-card" onSubmit={(event) => void importAudio(event)}>
+              <label className="profile-field" htmlFor="import-song-title">
+                <span>Song title</span>
+                <input
+                  id="import-song-title"
+                  value={uploadTitle}
+                  onChange={(event) => setUploadTitle(event.target.value)}
+                  maxLength={120}
+                  placeholder="Name this song"
+                  required
+                  disabled={isUploadingAudio}
+                />
+              </label>
+              <label className="profile-field" htmlFor="import-song-file">
+                <span>MP3 file</span>
+                <input
+                  id="import-song-file"
+                  type="file"
+                  accept=".mp3,audio/mpeg"
+                  required
+                  disabled={isUploadingAudio}
+                  onChange={(event) => {
+                    const selectedFile = event.target.files?.[0] ?? null;
+                    setAudioFile(selectedFile);
+                    if (selectedFile && !uploadTitle.trim()) {
+                      setUploadTitle(selectedFile.name.replace(/\.mp3$/i, "").slice(0, 120));
+                    }
+                  }}
+                />
+              </label>
+              <p className="library-import-note">Create and download a song from ElevenLabs, then import it here. MP3 only, up to 10 MB. Free-plan limits and usage terms are set by ElevenLabs.</p>
+              <button className="generate-button" type="submit" disabled={isUploadingAudio || !audioFile || !uploadTitle.trim()}>
+                {isUploadingAudio ? "Importing song…" : "Import song to library"} <span aria-hidden="true">↗</span>
+              </button>
+            </form>
             {projects.length ? (
               <div className="library-project-list">
                 {projects.map((project) => {

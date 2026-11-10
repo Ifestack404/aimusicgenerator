@@ -48,6 +48,8 @@ Run both `supabase/migrations/20261110000000_music_library_and_albums.sql` and `
 
 Generation uses ElevenLabs Music v2.5 and paid provider credits. Review ElevenLabs pricing and configure a quota before generating. User-supplied lyrics are sent only in Lyrics to music mode. The API route allows up to five minutes for provider generation; the hosting plan must support that duration. Locally, add the key to `.env.local`.
 
+If you do not have API access, you can use any music-generation allowance available in the ElevenLabs website, download an MP3, and import it from the Song projects section of `/library`. The import supports MP3 files up to 10 MB and saves them privately to your Supabase library. Free-plan limits and usage rights are controlled by ElevenLabs and may change.
+
 If generation returns **402 Payment Required**, the request reached ElevenLabs but the account is not currently authorized to fulfill it. Check the ElevenLabs account plan, billing status, available credits, and access to Music v2.5. Vercel logs include the provider response for additional diagnostics; never share API keys or authorization headers.
 
 Pricing is a non-active preview. Checkout and account billing are not connected.

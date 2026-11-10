@@ -1,6 +1,6 @@
 # Soundforge AI — Project status
 
-**Status:** Responsive music platform with Supabase Auth, artist profiles, and a private song/album library. ElevenLabs Music API integration is implemented; it requires `ELEVENLABS_API_KEY` in Vercel and the generated-audio storage migration before deployed generation can work.
+**Status:** Responsive music platform with Supabase Auth, artist profiles, and a private song/album library. ElevenLabs Music API integration and a zero-API-cost MP3 import flow are implemented. The deployed API key is configured, but ElevenLabs returned HTTP 402; API generation requires eligible paid access and credits.
 
 ## Completed in this stage
 
@@ -27,6 +27,7 @@
 - Added an idempotent SQL migration for `artist_profiles`, per-user RLS, new-user profile creation, private avatar storage, size/type limits, and ownership policies.
 - Added a private song-project, album, and album-track schema with per-user RLS, plus a library UI for saving prompt/lyric ideas and organizing them into albums.
 - Added an authenticated server route for ElevenLabs Music v2.5 generation, lyric-to-song composition plans, private audio upload and persistence, library playback, and download controls.
+- Added private MP3 import to the library so users can generate audio on a provider website and upload it without paid API access.
 - Sanitized `.env.example` so it contains placeholders only.
 
 ## Files changed or added
@@ -63,7 +64,7 @@
 
 ## Known limitations
 
-- The ElevenLabs Music API key is not available in this repository. Add `ELEVENLABS_API_KEY` as a server-only Vercel variable; no generation request can succeed until configured.
+- The ElevenLabs Music API requires a paid subscriber account. The deployed request currently returns HTTP 402; users without API access can import MP3s made using any free provider website allowance.
 - The music-library and generated-audio migrations must be applied to the Supabase project before saving generated songs or albums.
 - Generation uses paid provider credits and may need Vercel function-duration support up to five minutes.
 - Subscription checkout and production pricing are not implemented.
