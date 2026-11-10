@@ -7,7 +7,7 @@ import { getSupabaseClient } from "../lib/supabase/client";
 
 const AVATAR_BUCKET = "artist-avatars";
 const MAX_AVATAR_BYTES = 1024 * 1024;
-const PROFILE_MIGRATION = "Apply the artist profile migration in supabase/migrations, then reload this page.";
+const PROFILE_MIGRATION = "Your sign-in works, but profile storage is not set up yet. Run supabase/migrations/20260601000000_artist_profiles_and_avatars.sql in the Supabase SQL Editor, then reload this page to save your profile.";
 
 type ArtistProfileData = {
   artistName: string;
@@ -59,6 +59,25 @@ function mapProfile(row: ProfileRow, avatarUrl: string | null): ArtistProfileDat
   };
 }
 
+function getGoogleProfileDefaults(metadata: Record<string, unknown>) {
+  const artistName = [metadata.full_name, metadata.name, metadata.display_name]
+    .find((value): value is string => typeof value === "string" && value.trim().length > 0)?.trim() ?? "";
+  const candidateAvatar = [metadata.avatar_url, metadata.picture]
+    .find((value): value is string => typeof value === "string" && value.trim().length > 0);
+
+  let avatarUrl: string | null = null;
+  if (candidateAvatar) {
+    try {
+      const parsedAvatar = new URL(candidateAvatar);
+      if (parsedAvatar.protocol === "https:") avatarUrl = parsedAvatar.href;
+    } catch {
+      avatarUrl = null;
+    }
+  }
+
+  return { artistName, avatarUrl };
+}
+
 export default function ArtistProfile() {
   const [profile, setProfile] = useState<ArtistProfileData>(emptyProfile);
   const [userId, setUserId] = useState<string | null>(null);
@@ -85,6 +104,7 @@ export default function ArtistProfile() {
           return;
         }
         if (active) setUserId(user.id);
+        const googleDefaults = getGoogleProfileDefaults(user.user_metadata);
 
         const { data, error } = await supabase
           .from("artist_profiles")
@@ -110,8 +130,19 @@ export default function ArtistProfile() {
         if (active) {
           if (data) {
             const row = data as ProfileRow;
-            setProfile(mapProfile(row, avatarUrl));
+            const savedProfile = mapProfile(row, avatarUrl);
+            setProfile({
+              ...savedProfile,
+              artistName: savedProfile.artistName || googleDefaults.artistName,
+              avatarUrl: savedProfile.avatarUrl || googleDefaults.avatarUrl,
+            });
             savedAvatarPath.current = row.avatar_path;
+          } else {
+            setProfile({
+              ...emptyProfile,
+              artistName: googleDefaults.artistName,
+              avatarUrl: googleDefaults.avatarUrl,
+            });
           }
         }
       } catch (error: unknown) {
@@ -303,7 +334,7 @@ export default function ArtistProfile() {
       <section className="section-wrap profile-section" aria-label="Artist profile settings">
         <div className="profile-local-notice">
           <span className="profile-notice-mark" aria-hidden="true">i</span>
-          <p><strong>Cloud profile</strong><span>Your details are saved to your signed-in account. Profile records are protected by row-level security.</span></p>
+          <p><strong>Cloud profile</strong><span>Your name and photo can come from Google. Add your bio and other details, then save them to your account. Profile records are protected by row-level security.</span></p>
         </div>
         {loadError && <p className="profile-feedback is-error" role="status">{loadError}</p>}
         <div className="profile-layout">

@@ -43,7 +43,9 @@ The creation modes, genre and mood controls, vocal options, duration controls, p
 
 Pricing is a non-active preview. Checkout and account billing are not connected.
 
-Artist profiles require a signed-in account. Artist details are stored in `public.artist_profiles` with row-level security, and avatars are saved in the private `artist-avatars` bucket with per-user Storage policies and signed preview URLs. Existing browser-local profile data is not automatically imported.
+Artist profiles require a signed-in account and the SQL migration below. The profile editor can prefill the artist name and photo from Google account metadata; Google does not provide a bio, genres, location, or website, so add those details and choose **Save artist profile**. Profile fields are stored in `public.artist_profiles` with row-level security. Uploaded avatars are saved in the private `artist-avatars` bucket with per-user Storage policies and signed preview URLs.
+
+Existing Google accounts are not automatically populated in `artist_profiles` by the signup trigger. Once the migration is applied, the profile editor can load the Google name/photo as defaults; enter a handle and any other details, then save them. To store the avatar in the private bucket, use **Upload image** and then save the profile.
 
 The homepage hero uses an open, layered soundscape waveform aligned with the hero copy instead of a boxed artwork card.
 
