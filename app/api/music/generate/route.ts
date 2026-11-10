@@ -182,6 +182,12 @@ export async function POST(request: NextRequest) {
     if (providerResponse.status === 401 || providerResponse.status === 403) {
       return errorResponse("The music provider rejected its API key. Check ELEVENLABS_API_KEY in Vercel.", 502);
     }
+    if (providerResponse.status === 402) {
+      return errorResponse(
+        "ElevenLabs returned 402 Payment Required. Check the account's plan, billing status, available credits, and access to Music v2.5.",
+        402,
+      );
+    }
     if (providerResponse.status === 429) {
       return errorResponse("The music provider quota or rate limit was reached. Check the ElevenLabs account and try again later.", 429);
     }

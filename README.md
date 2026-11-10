@@ -48,6 +48,8 @@ Run both `supabase/migrations/20261110000000_music_library_and_albums.sql` and `
 
 Generation uses ElevenLabs Music v2.5 and paid provider credits. Review ElevenLabs pricing and configure a quota before generating. User-supplied lyrics are sent only in Lyrics to music mode. The API route allows up to five minutes for provider generation; the hosting plan must support that duration. Locally, add the key to `.env.local`.
 
+If generation returns **402 Payment Required**, the request reached ElevenLabs but the account is not currently authorized to fulfill it. Check the ElevenLabs account plan, billing status, available credits, and access to Music v2.5. Vercel logs include the provider response for additional diagnostics; never share API keys or authorization headers.
+
 Pricing is a non-active preview. Checkout and account billing are not connected.
 
 Artist profiles require a signed-in account and the SQL migration below. The profile editor can prefill the artist name and photo from Google account metadata; Google does not provide a bio, genres, location, or website, so add those details and choose **Save artist profile**. Profile fields are stored in `public.artist_profiles` with row-level security. Uploaded avatars are saved in the private `artist-avatars` bucket with per-user Storage policies and signed preview URLs.
