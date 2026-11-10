@@ -1,6 +1,6 @@
 # Soundforge AI — Project status
 
-**Status:** Responsive multi-page prototype complete. Supabase Auth is verified reachable with the configured project URL and publishable key; the artist-profile database migration still needs to be applied.
+**Status:** Responsive multi-page prototype with Supabase Auth and artist-profile persistence. A private song-project and album library is being added. Real music generation is not connected.
 
 ## Completed in this stage
 
@@ -26,6 +26,7 @@
 - Added a request-scoped Supabase server client that reads and writes session cookies.
 - Replaced local-only profile saving with authenticated Supabase profile fetch/upsert, handle conflict feedback, private avatar upload, and signed avatar previews.
 - Added an idempotent SQL migration for `artist_profiles`, per-user RLS, new-user profile creation, private avatar storage, size/type limits, and ownership policies.
+- Added a private song-project, album, and album-track schema with per-user RLS, plus a library UI for saving prompt/lyric ideas and organizing them into albums.
 - Sanitized `.env.example` so it contains placeholders only.
 
 ## Files changed or added
@@ -35,6 +36,7 @@
 - `app/explore/page.tsx` — featured styles and illustrative tracks.
 - `app/pricing/page.tsx` — non-active pricing preview.
 - `app/profile/page.tsx` — artist identity and profile editor.
+- `app/library/page.tsx` — private saved song projects and album organization.
 - `app/settings/supabase/page.tsx` — Supabase setup and connection-status page.
 - `app/auth/page.tsx`, `app/auth/callback/route.ts` — account page and email-confirmation callback.
 - `app/api/supabase/status/route.ts` — server-side Supabase API reachability check.
@@ -42,6 +44,7 @@
 - `app/globals.css` — visual system, responsive styles, reduced-motion handling, and hero animation.
 - `components/site-shell.tsx` — shared route-aware navigation and footer.
 - `components/artist-profile.tsx` — authenticated Supabase artist profile, private avatar storage, validation, and preview.
+- `components/music-library.tsx` — saved song project list, album creation, track assignment, and deletion.
 - `components/auth-form.tsx` — sign-up/sign-in form.
 - `app/auth/callback/route.ts` — handles email confirmation and Google OAuth callback/session exchange.
 - `components/supabase-connection.tsx` — connection setup instructions and status feedback.
@@ -49,6 +52,7 @@
 - `lib/music-options.ts` — shared genre choices for the Explore and Create routes.
 - `lib/supabase/client.ts`, `lib/supabase/server.ts`, `lib/supabase/config.ts`, and `proxy.ts` — browser/server clients, cookie-based session refresh, and safe environment configuration.
 - `supabase/migrations/20260601000000_artist_profiles_and_avatars.sql` — database, RLS, trigger, and avatar bucket setup.
+- `supabase/migrations/20261110000000_music_library_and_albums.sql` — private song project, album, and album-track tables with RLS.
 - `.env.example` and `.gitignore` — local environment template and secret-file exclusions.
 - `tsconfig.json` — strict TypeScript configuration.
 - `next-env.d.ts` — Next.js TypeScript declarations generated during the build.
@@ -57,10 +61,11 @@
 
 ## Known limitations
 
-- No music-generation API or audio assets are present; demo tracks are illustrative artwork and metadata only.
+- No music-generation API or audio assets are present. Studio preview is a demo and cannot generate, play, or download music.
+- Song projects and albums require running `supabase/migrations/20261110000000_music_library_and_albums.sql` in the same Supabase project configured in the app.
 - Saved creations, subscription checkout, and production pricing are not implemented.
 - A service-role key was previously entered in the public-key environment variable, then removed. Rotate it in Supabase if that has not already been done. The current public key successfully reaches Supabase Auth.
-- The Supabase migration has not yet been applied to the remote project. Until then, profile reads/writes and avatar uploads will report setup errors.
+- The artist-profile migration was reported applied in Supabase; the music-library migration is separate and must also be applied before song projects/albums can be saved.
 - Existing localStorage artist-profile data is not automatically imported into the signed-in Supabase profile.
 - Configure the Supabase Auth redirect allowlist for `/auth/callback` on each environment before confirming email sign-ups.
 - Google sign-in requires enabling the Google provider in Supabase and configuring a Google OAuth client; provider credentials have not been supplied or set up in the dashboards.
@@ -69,7 +74,7 @@
 
 ## Recommended next stage
 
-Apply the included SQL migration in the Supabase SQL Editor, then test sign-up, email confirmation, sign-in/sign-out, profile edits, and avatar upload with a test account. The connection check verifies Auth reachability only; it does not verify database access. Decide whether to add an explicit local-profile import flow. After that, choose an authorized music-generation provider and add licensed sample audio; keep billing disabled until real plan terms and checkout behavior are defined.
+Choose an authorized music-generation provider and configure its secret key only in the hosting provider's server environment before implementing real audio generation. Then test saved projects and album organization after applying the music-library migration. Keep billing disabled until real plan terms and checkout behavior are defined.
 
 ## Validation
 

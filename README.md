@@ -1,6 +1,6 @@
 # Soundforge AI
 
-Soundforge AI is a Next.js App Router project for a premium AI music creation studio. Its visual direction pairs glassmorphism with a warm recording-studio atmosphere, restrained green accents, and tactile creative controls. Visitors can switch between light and dark themes; their choice is saved in browser storage. Its home, create, explore, and pricing sections are separate pages. The prototype does not connect to a music-generation service, payment provider, or audio library. Supabase authentication and artist-profile persistence are implemented; they need a valid project credential pair and the included database migration.
+Soundforge AI is a Next.js App Router project for an AI music creation studio. Its visual direction pairs glassmorphism with a warm recording-studio atmosphere, restrained green accents, and tactile creative controls. Visitors can switch between light and dark themes; their choice is saved in browser storage. Supabase authentication and artist-profile persistence are implemented. Signed-in users can save song ideas and lyrics and organize them into albums. Real audio generation, playback, and payments are not connected yet.
 
 ## Run locally
 
@@ -14,6 +14,7 @@ Open [http://localhost:3000](http://localhost:3000) in your browser. To check a 
 
 - `/` (`app/page.tsx`) — branded homepage and links into the studio, explore, and pricing pages.
 - `/create` (`app/create/page.tsx`) — interactive music-creation demo.
+- `/library` (`app/library/page.tsx`) — private saved song projects and album organization.
 - `/explore` (`app/explore/page.tsx`) — featured genres and illustrative tracks. A selected genre carries through to the create page.
 - `/pricing` (`app/pricing/page.tsx`) — non-active pricing preview.
 - `/profile` (`app/profile/page.tsx`) — artist profile editor with browser-local persistence.
@@ -24,11 +25,13 @@ Open [http://localhost:3000](http://localhost:3000) in your browser. To check a 
 - `components/site-shell.tsx` — shared responsive navigation and footer.
 - `components/studio-home.tsx` — page content, creation form, and reusable UI sections.
 - `components/artist-profile.tsx` — authenticated artist profile editor with Supabase table and private Storage persistence.
+- `components/music-library.tsx` — private song project library, album creation, track organization, and deletion.
 - `components/auth-form.tsx` — email/password sign-up and sign-in.
 - `components/supabase-connection.tsx` — connection instructions and API reachability check.
 - `lib/supabase/client.ts` / `lib/supabase/server.ts` — browser and request-scoped server clients.
 - `proxy.ts` — Supabase session refresh and cookie forwarding for Next.js 16.
 - `supabase/migrations/20260601000000_artist_profiles_and_avatars.sql` — artist profile table, RLS, signup profile trigger, and private avatar bucket/policies.
+- `supabase/migrations/20261110000000_music_library_and_albums.sql` — private song project/lyrics and album tables with per-user RLS.
 - `lib/supabase/config.ts` — validated project URL and publishable-key configuration.
 - `app/api/supabase/status/route.ts` — server-side Supabase API connection check.
 - `.env.example` — template for local Supabase credentials; copy to `.env.local`.
@@ -39,13 +42,17 @@ Open [http://localhost:3000](http://localhost:3000) in your browser. To check a 
 
 ## Current prototype behavior
 
-The creation modes, genre and mood controls, vocal options, duration controls, prompt character count, advanced settings, mobile navigation, and form validation are interactive. Submitting a valid prompt runs a clearly labeled demo flow only; no audio is generated or saved. The featured track rows are illustrative and their play controls stay disabled because the project contains no audio samples.
+The creation modes, genre and mood controls, vocal options, duration controls, prompt character count, advanced settings, mobile navigation, and form validation are interactive. Signed-in users can save the prompt or lyrics as a private song project and organize saved projects into albums. The preview action remains a demo: no audio is generated, and there are no audio files to play or download.
+
+The private music library and albums require running `supabase/migrations/20261110000000_music_library_and_albums.sql` in the same Supabase project configured for the app. After the migration, sign in, save an idea from `/create`, then create albums and organize projects at `/library`.
 
 Pricing is a non-active preview. Checkout and account billing are not connected.
 
 Artist profiles require a signed-in account and the SQL migration below. The profile editor can prefill the artist name and photo from Google account metadata; Google does not provide a bio, genres, location, or website, so add those details and choose **Save artist profile**. Profile fields are stored in `public.artist_profiles` with row-level security. Uploaded avatars are saved in the private `artist-avatars` bucket with per-user Storage policies and signed preview URLs.
 
 Existing Google accounts are not automatically populated in `artist_profiles` by the signup trigger. Once the migration is applied, the profile editor can load the Google name/photo as defaults; enter a handle and any other details, then save them. To store the avatar in the private bucket, use **Upload image** and then save the profile.
+
+To enable the private music library and albums, run `supabase/migrations/20261110000000_music_library_and_albums.sql` in the same Supabase SQL Editor. On `/create`, enter a title and prompt or lyrics, then choose **Save idea**. On `/library`, create albums and use each saved project's album selector to organize tracks. Audio generation is intentionally unavailable until a licensed generation provider is configured; the library currently stores project data and lyrics, not audio.
 
 The homepage hero uses an open, layered soundscape waveform aligned with the hero copy instead of a boxed artwork card.
 

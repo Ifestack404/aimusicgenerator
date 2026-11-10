@@ -9,6 +9,7 @@ import {
 } from "react";
 import Link from "next/link";
 import { genres } from "../lib/music-options";
+import { getSupabaseClient } from "../lib/supabase/client";
 
 const modes = [
   { id: "text", label: "Text to music" },
@@ -210,11 +211,31 @@ export function StudioForm({
   const [isGenerating, setIsGenerating] = useState(false);
   const [instrument, setInstrument] = useState("Let the song decide");
   const [creativity, setCreativity] = useState("Balanced");
+  const [saveTitle, setSaveTitle] = useState("");
+  const [isSavingProject, setIsSavingProject] = useState(false);
+  const [accountId, setAccountId] = useState<string | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const copy = promptCopy[mode];
 
-  useEffect(() => () => {
-    if (timer.current) clearTimeout(timer.current);
+  useEffect(() => {
+    let active = true;
+    const supabase = getSupabaseClient();
+    void supabase.auth.getUser().then(({ data, error }) => {
+      if (error && error.name !== "AuthSessionMissingError") {
+        console.error("Unable to check the signed-in user for song saving.", error);
+        return;
+      }
+      if (active) setAccountId(data.user?.id ?? null);
+    });
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (active) setAccountId(session?.user.id ?? null);
+    });
+
+    return () => {
+      active = false;
+      subscription.unsubscribe();
+      if (timer.current) clearTimeout(timer.current);
+    };
   }, []);
 
   function changeMode(nextMode: Mode) {
@@ -243,6 +264,54 @@ export function StudioForm({
         message: "Demo flow complete. No audio was generated or saved because the music engine is not connected.",
       });
     }, 1100);
+  }
+
+  async function handleSaveProject() {
+    if (!accountId || isSavingProject) return;
+    const projectTitle = saveTitle.trim();
+    const promptText = prompt.trim();
+    if (!projectTitle) {
+      setFeedback({ type: "error", message: "Add a title for this song idea before saving." });
+      return;
+    }
+    if (!promptText) {
+      setFeedback({ type: "error", message: "Add a prompt or lyrics before saving this song idea." });
+      document.getElementById("music-prompt")?.focus();
+      return;
+    }
+
+    setIsSavingProject(true);
+    setFeedback(null);
+    try {
+      const { error } = await getSupabaseClient().from("music_projects").insert({
+        user_id: accountId,
+        title: projectTitle,
+        mode,
+        prompt: mode === "lyrics" ? "" : promptText,
+        lyrics: mode === "lyrics" ? promptText : "",
+        genre: selectedGenre,
+        mood,
+        vocal,
+        duration_seconds: Number.parseInt(duration, 10) * (duration.startsWith("min") ? 60 : 1),
+        status: "draft",
+      });
+      if (error) {
+        if (error.code === "42P01" || error.code === "PGRST205") {
+          throw new Error("Run supabase/migrations/20261110000000_music_library_and_albums.sql in the Supabase SQL Editor before saving song projects.");
+        }
+        throw error;
+      }
+      setSaveTitle("");
+      setFeedback({ type: "demo", message: "Song idea saved to your private library. No audio was generated." });
+    } catch (error: unknown) {
+      console.error("Unable to save the song project.", error);
+      setFeedback({
+        type: "error",
+        message: error instanceof Error ? error.message : "Could not save your song idea. Please try again.",
+      });
+    } finally {
+      setIsSavingProject(false);
+    }
   }
 
   return (
@@ -347,7 +416,20 @@ export function StudioForm({
         )}
 
         <div className="form-submit-row">
-          <p>Made for exploring. Your idea stays yours.</p>
+          <div className="studio-actions-copy">
+            <p>Made for exploring. Your idea stays yours.</p>
+            {accountId ? (
+              <div className="studio-save-controls">
+                <input aria-label="Song project title" maxLength={120} placeholder="Title this song idea" value={saveTitle} onChange={(event) => setSaveTitle(event.target.value)} />
+                <button className="secondary-button" type="button" onClick={() => void handleSaveProject()} disabled={isSavingProject}>
+                  {isSavingProject ? "Saving…" : "Save idea"}
+                </button>
+                <Link className="text-link" href="/library">Open library ↗</Link>
+              </div>
+            ) : (
+              <Link className="text-link" href="/auth">Sign in to save song ideas ↗</Link>
+            )}
+          </div>
           <button className="generate-button" type="submit" disabled={isGenerating}>
             {isGenerating ? (
               <><span className="loading-spinner" aria-hidden="true" /> Running demo…</>

@@ -7,6 +7,7 @@ import { getSupabaseClient } from "../lib/supabase/client";
 
 const navigation = [
   { href: "/create", label: "Create music" },
+  { href: "/library", label: "Library" },
   { href: "/explore", label: "Explore" },
   { href: "/pricing", label: "Pricing" },
 ];
@@ -178,6 +179,7 @@ function Footer() {
         </div>
         <nav className="footer-links" aria-label="Footer navigation">
           <Link href="/create">Create music</Link>
+          <Link href="/library">Music library</Link>
           <Link href="/explore">Explore</Link>
           <Link href="/pricing">Pricing preview</Link>
           <Link href="/settings/supabase">Supabase setup</Link>
