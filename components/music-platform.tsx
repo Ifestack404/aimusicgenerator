@@ -265,7 +265,7 @@ function TrackRow({
   );
 }
 
-export function MusicCatalog() {
+export function MusicCatalog({ welcome = false }: { welcome?: boolean }) {
   const [tracks, setTracks] = useState<MusicTrack[]>([]);
   const [likes, setLikes] = useState<Set<string>>(new Set());
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
@@ -368,53 +368,101 @@ export function MusicCatalog() {
   }
 
   return (
-    <main className="music-page section-wrap">
-      <div className="music-page-heading">
-        <p className="eyebrow">THE SOUND FORGE CATALOG</p>
-        <h1>Find your <span>next favorite.</span></h1>
-        <p>Discover independent music shared by artists. Press play and let the next track find you.</p>
-      </div>
-      <div className="catalog-tools">
-        <label className="catalog-search">
-          <span className="visually-hidden">Search tracks and artists</span>
-          <span aria-hidden="true">⌕</span>
-          <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search songs, artists, or styles" />
-        </label>
-        <label className="catalog-genre">
-          <span className="visually-hidden">Filter by genre</span>
-          <select value={genre} onChange={(event) => setGenre(event.target.value)}>
-            <option>All styles</option>
-            {genres.map((item) => <option key={item}>{item}</option>)}
-          </select>
-        </label>
-        <Link className="music-primary-link" href="/create">Upload a track</Link>
-      </div>
-      {notice && <p className="music-notice" role="status">{notice}</p>}
-      {error ? <div className="music-message is-error" role="alert">{error}</div> : loading ? (
-        <div className="music-message">Loading the catalog…</div>
-      ) : visibleTracks.length ? (
-        <div className="catalog-list" aria-label="Music tracks">
-          {visibleTracks.map((track) => (
-            <TrackRow
-              key={track.id}
-              track={track}
-              tracks={visibleTracks}
-              liked={likes.has(track.id)}
-              onToggleLike={() => void toggleLike(track)}
-              playlistOptions={playlists}
-              onAddToPlaylist={(playlistId) => void addToPlaylist(track, playlistId)}
-            />
-          ))}
-        </div>
+    <main className={`music-page section-wrap${welcome ? " is-home" : ""}`}>
+      {welcome ? (
+        <section className="welcome-hero" aria-labelledby="welcome-title">
+          <div className="welcome-copy">
+            <p className="eyebrow">WELCOME TO SOUNDFORGE</p>
+            <h1 id="welcome-title">Independent music.<br /><span>Yours to discover.</span></h1>
+            <p className="welcome-description">
+              Find a sound that stays with you. Explore music shared by independent artists, save the tracks you love, and share your own.
+            </p>
+            <div className="welcome-actions">
+              <a className="music-primary-link" href="#catalog">Explore the music <span aria-hidden="true">↓</span></a>
+              <Link className="welcome-secondary-link" href="/create">Share a track <span aria-hidden="true">↗</span></Link>
+            </div>
+            <div className="welcome-points">
+              <span><i aria-hidden="true">01</i> Discover independent artists</span>
+              <span><i aria-hidden="true">02</i> Listen and save favorites</span>
+              <span><i aria-hidden="true">03</i> Share music you own</span>
+            </div>
+          </div>
+          <div className="welcome-art" aria-hidden="true">
+            <div className="welcome-art-glow" />
+            <div className="welcome-record">
+              <div className="welcome-record-label"><span>SF</span></div>
+            </div>
+            <div className="welcome-art-wave">
+              {[18, 30, 45, 28, 54, 72, 39, 61, 82, 48, 69, 34, 57, 25, 43, 62, 31, 49].map((height, index) => (
+                <i key={index} style={{ height: `${height}%` }} />
+              ))}
+            </div>
+            <div className="welcome-art-caption">
+              <span className="welcome-live-dot" />
+              <span>MADE BY ARTISTS</span>
+              <span>SHARED WITH YOU</span>
+            </div>
+            <span className="welcome-art-note note-one">♪</span>
+            <span className="welcome-art-note note-two">♫</span>
+          </div>
+        </section>
       ) : (
-        <div className="catalog-empty">
-          <span aria-hidden="true">♫</span>
-          <h2>{tracks.length ? "No tracks match that search." : "The catalog is waiting for its first track."}</h2>
-          <p>{tracks.length ? "Try another title, artist, or style." : "Be the first artist to share a track with the community."}</p>
-          {!tracks.length && <Link className="music-primary-link" href="/create">Upload the first track</Link>}
+        <div className="music-page-heading">
+          <p className="eyebrow">THE SOUND FORGE CATALOG</p>
+          <h1>Find your <span>next favorite.</span></h1>
+          <p>Discover independent music shared by artists. Press play and let the next track find you.</p>
         </div>
       )}
-      {!userId && !loading && <p className="music-subtle"><Link href="/auth">Sign in</Link> to like music and create playlists.</p>}
+      <section className="catalog-section" id="catalog" aria-labelledby="catalog-title">
+        <div className="catalog-section-heading">
+          <div>
+            <p className="eyebrow">{welcome ? "FRESH FROM THE COMMUNITY" : "THE SOUND FORGE CATALOG"}</p>
+            <h2 id="catalog-title">{welcome ? "Start listening." : "Explore the catalog."}</h2>
+          </div>
+          {welcome && <Link href="/explore">Browse all music <span aria-hidden="true">↗</span></Link>}
+        </div>
+        <div className="catalog-tools">
+          <label className="catalog-search">
+            <span className="visually-hidden">Search tracks and artists</span>
+            <span aria-hidden="true">⌕</span>
+            <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search songs, artists, or styles" />
+          </label>
+          <label className="catalog-genre">
+            <span className="visually-hidden">Filter by genre</span>
+            <select value={genre} onChange={(event) => setGenre(event.target.value)}>
+              <option>All styles</option>
+              {genres.map((item) => <option key={item}>{item}</option>)}
+            </select>
+          </label>
+          <Link className="music-primary-link" href="/create">Upload a track</Link>
+        </div>
+        {notice && <p className="music-notice" role="status">{notice}</p>}
+        {error ? <div className="music-message is-error" role="alert">{error}</div> : loading ? (
+          <div className="music-message">Loading the catalog…</div>
+        ) : visibleTracks.length ? (
+          <div className="catalog-list" aria-label="Music tracks">
+            {visibleTracks.map((track) => (
+              <TrackRow
+                key={track.id}
+                track={track}
+                tracks={visibleTracks}
+                liked={likes.has(track.id)}
+                onToggleLike={() => void toggleLike(track)}
+                playlistOptions={playlists}
+                onAddToPlaylist={(playlistId) => void addToPlaylist(track, playlistId)}
+              />
+            ))}
+          </div>
+        ) : (
+          <div className="catalog-empty">
+            <span aria-hidden="true">♫</span>
+            <h2>{tracks.length ? "No tracks match that search." : "The catalog is waiting for its first track."}</h2>
+            <p>{tracks.length ? "Try another title, artist, or style." : "Be the first artist to share a track with the community."}</p>
+            {!tracks.length && <Link className="music-primary-link" href="/create">Upload the first track</Link>}
+          </div>
+        )}
+        {!userId && !loading && <p className="music-subtle"><Link href="/auth">Sign in</Link> to like music and create playlists.</p>}
+      </section>
     </main>
   );
 }

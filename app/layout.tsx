@@ -5,9 +5,9 @@ import type { ReactNode } from "react";
 import SiteShell from "../components/site-shell";
 
 export const metadata: Metadata = {
-  title: "Soundforge — Independent music, made to be heard",
+  title: "Soundforge — Independent music, yours to discover",
   description:
-    "Discover, stream, and share independent music with Soundforge.",
+    "Discover new independent artists, save tracks you love, and share your music on Soundforge.",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {
