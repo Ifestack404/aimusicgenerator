@@ -463,6 +463,48 @@ export function MusicCatalog({ welcome = false }: { welcome?: boolean }) {
         )}
         {!userId && !loading && <p className="music-subtle"><Link href="/auth">Sign in</Link> to like music and create playlists.</p>}
       </section>
+      {welcome && (
+        <>
+          <section className="home-highlights" aria-labelledby="home-highlights-title">
+            <div className="home-section-heading">
+              <p className="eyebrow">A HOME FOR YOUR NEXT FAVORITE</p>
+              <h2 id="home-highlights-title">Made for the way you <span>find music.</span></h2>
+              <p>Discover independent sounds, keep the tracks that move you, and help artists reach new listeners.</p>
+            </div>
+            <div className="home-highlight-grid">
+              <article className="home-highlight-card">
+                <span className="home-highlight-number">01 / DISCOVER</span>
+                <span className="home-highlight-icon" aria-hidden="true">⌕</span>
+                <h3>Find a new sound.</h3>
+                <p>Explore the community catalog, search by artist or style, and press play on something new.</p>
+                <Link href="/explore">Explore music <span aria-hidden="true">↗</span></Link>
+              </article>
+              <article className="home-highlight-card">
+                <span className="home-highlight-number">02 / COLLECT</span>
+                <span className="home-highlight-icon" aria-hidden="true">♫</span>
+                <h3>Keep what you love.</h3>
+                <p>Save favorite tracks to your library and arrange the music you love into playlists.</p>
+                <Link href="/library">Visit your library <span aria-hidden="true">↗</span></Link>
+              </article>
+              <article className="home-highlight-card">
+                <span className="home-highlight-number">03 / SHARE</span>
+                <span className="home-highlight-icon" aria-hidden="true">↑</span>
+                <h3>Let your music travel.</h3>
+                <p>Share an original MP3 with listeners. You’ll need an account and permission to publish it.</p>
+                <Link href="/create">Share a track <span aria-hidden="true">↗</span></Link>
+              </article>
+            </div>
+          </section>
+          <section className="home-artist-cta" aria-labelledby="home-artist-title">
+            <div>
+              <p className="eyebrow">FOR INDEPENDENT ARTISTS</p>
+              <h2 id="home-artist-title">Your music deserves to be heard.</h2>
+              <p>Put your track in front of curious listeners and give the community something new to discover.</p>
+            </div>
+            <Link className="music-primary-link" href="/create">Upload your music <span aria-hidden="true">↗</span></Link>
+          </section>
+        </>
+      )}
     </main>
   );
 }

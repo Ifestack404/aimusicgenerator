@@ -172,17 +172,31 @@ function Footer() {
   return (
     <footer className="site-footer">
       <div className="footer-inner">
-        <div>
+        <div className="footer-brand">
           <Brand />
           <p className="footer-tagline">Independent music, made to be heard.</p>
+          <p className="footer-description">Discover new artists, save the tracks you love, and share music you have the right to publish.</p>
         </div>
-        <nav className="footer-links" aria-label="Footer navigation">
-          <Link href="/create">Upload music</Link>
-          <Link href="/library">Music library</Link>
-          <Link href="/explore">Explore</Link>
-          <Link href="/settings/supabase">Supabase setup</Link>
+        <nav className="footer-column" aria-label="Listen">
+          <h2>LISTEN</h2>
+          <Link href="/explore">Explore music</Link>
+          <Link href="/library">Your library</Link>
         </nav>
-        <p className="footer-copyright">© 2026 Soundforge <span>Made for the love of music.</span></p>
+        <nav className="footer-column" aria-label="For artists">
+          <h2>FOR ARTISTS</h2>
+          <Link href="/create">Upload a track</Link>
+          <Link href="/profile">Artist profile</Link>
+        </nav>
+        <nav className="footer-column" aria-label="Your account">
+          <h2>YOUR ACCOUNT</h2>
+          <Link href="/auth">Sign in or join</Link>
+          <Link href="/settings/supabase">Connection setup</Link>
+        </nav>
+        <div className="footer-bottom">
+          <p>© 2026 Soundforge</p>
+          <p>Music on Soundforge is shared by its artists.</p>
+          <a href="#top">Back to top <span aria-hidden="true">↑</span></a>
+        </div>
       </div>
     </footer>
   );
