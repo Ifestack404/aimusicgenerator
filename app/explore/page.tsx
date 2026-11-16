@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
-import { StudioExplore } from "../../components/studio-home";
+import { MusicCatalog } from "../../components/music-platform";
 
 export const metadata: Metadata = {
-  title: "Explore Music — Soundforge AI",
-  description: "Explore musical styles and illustrative studio sketches with Soundforge AI.",
+  title: "Explore Music — Soundforge",
+  description: "Discover and stream independent tracks shared by Soundforge artists.",
 };
 
 export default function ExplorePage() {
-  return <StudioExplore />;
+  return <MusicCatalog />;
 }

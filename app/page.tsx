@@ -1,5 +1,5 @@
-import StudioHome from "../components/studio-home";
+import { MusicCatalog } from "../components/music-platform";
 
 export default function Home() {
-  return <StudioHome />;
+  return <MusicCatalog />;
 }

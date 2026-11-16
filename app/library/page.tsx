@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
-import MusicLibrary from "../../components/music-library";
+import { MusicLibraryPage } from "../../components/music-platform";
 
 export const metadata: Metadata = {
-  title: "Your Music Library — Soundforge AI",
-  description: "Save song ideas and lyrics, and organize them into albums.",
+  title: "Your Library — Soundforge",
+  description: "Your liked tracks and playlists on Soundforge.",
 };
 
 export default function LibraryPage() {
-  return <MusicLibrary />;
+  return <MusicLibraryPage />;
 }

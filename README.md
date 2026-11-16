@@ -1,6 +1,6 @@
-# Soundforge AI
+# Soundforge
 
-Soundforge AI is a Next.js App Router project for an AI music creation studio. Its visual direction pairs glassmorphism with a warm recording-studio atmosphere, restrained green accents, and tactile creative controls. Visitors can switch between light and dark themes; their choice is saved in browser storage. Supabase authentication, artist profiles, and a private song and album library are implemented. Signed-in users can generate songs with Google Lyria, preview and download the audio, and save it to their library. The provider API key and database/storage migrations must be configured before generation can work. Payments are not connected.
+Soundforge is a Next.js music-discovery app for independent artists and listeners. Browse and search tracks, stream with a shared player, upload original MP3s, save favorites, and organize playlists. Supabase provides authentication, database access, and audio storage.
 
 ## Run locally
 
@@ -10,57 +10,22 @@ npm.cmd run dev
 
 Open [http://localhost:3000](http://localhost:3000) in your browser. To check a production build, run `npm.cmd run build`; to serve that build, run `npm.cmd run start`.
 
-## Pages and project structure
+## Pages
 
-- `/` (`app/page.tsx`) — branded homepage and links into the studio, explore, and pricing pages.
-- `/create` (`app/create/page.tsx`) — authenticated music studio for generating, previewing, downloading, and saving songs.
-- `/library` (`app/library/page.tsx`) — private saved song projects and album organization.
-- `/explore` (`app/explore/page.tsx`) — featured genres and illustrative tracks. A selected genre carries through to the create page.
-- `/pricing` (`app/pricing/page.tsx`) — non-active pricing preview.
-- `/profile` (`app/profile/page.tsx`) — artist profile editor backed by Supabase.
-- `/auth` (`app/auth/page.tsx`) — email/password sign-up and sign-in.
-- `/settings/supabase` (`app/settings/supabase/page.tsx`) — Supabase connection setup and health check.
-- `app/layout.tsx` — shared app layout and page metadata.
-- `app/globals.css` — global theme, responsive layout, and component styling.
-- `components/site-shell.tsx` — shared responsive navigation and footer.
-- `components/studio-home.tsx` — page content, creation form, and reusable UI sections.
-- `components/artist-profile.tsx` — authenticated artist profile editor with Supabase table and private Storage persistence.
-- `components/music-library.tsx` — private song project library, album creation, track organization, and deletion.
-- `components/auth-form.tsx` — email/password sign-up and sign-in.
-- `components/supabase-connection.tsx` — connection instructions and API reachability check.
-- `lib/supabase/client.ts` / `lib/supabase/server.ts` — browser and request-scoped server clients.
-- `proxy.ts` — Supabase session refresh and cookie forwarding for Next.js 16.
-- `supabase/migrations/20260601000000_artist_profiles_and_avatars.sql` — artist profile table, RLS, signup profile trigger, and private avatar bucket/policies.
-- `supabase/migrations/20261110000000_music_library_and_albums.sql` — private song project/lyrics and album tables with per-user RLS.
-- `lib/supabase/config.ts` — validated project URL and publishable-key configuration.
-- `app/api/supabase/status/route.ts` — server-side Supabase API connection check.
-- `app/api/music/generate/route.ts` — authenticated server-side Google Lyria Interactions API integration.
-- `supabase/migrations/20261110000001_generated_audio_storage.sql` — private bucket and per-user policies for generated audio.
-- `.env.example` — template for local Supabase credentials and the server-only music provider key; copy to `.env.local`.
-- `lib/music-options.ts` — shared genre options for the explore and create pages.
-- `tsconfig.json` — strict TypeScript configuration.
-- `next-env.d.ts` — Next.js TypeScript declarations.
-- `PROJECT_STATUS.md` — current progress, known limitations, and recommended next stage.
+- `/` and `/explore` — public catalog, search, genre filters, likes, and playback.
+- `/create` — authenticated MP3 publishing form for artists.
+- `/library` — liked tracks and personal playlists.
+- `/profile` — artist profile editor backed by Supabase.
+- `/auth` — email/password sign-up and sign-in.
+- `/settings/supabase` — Supabase connection setup and health check.
 
-## Music generation setup
+## Music catalog setup
 
-Run both `supabase/migrations/20261110000000_music_library_and_albums.sql` and `supabase/migrations/20261110000001_generated_audio_storage.sql` in the Supabase SQL Editor for the project configured in the app. Then set `GEMINI_API_KEY` as a server-only environment variable in Vercel (never prefix it with `NEXT_PUBLIC_`) and redeploy. For local development, add the same variable to `.env.local` and restart the dev server. Signed-in users can generate songs from `/create`, preview or download the result, and find saved audio in `/library`.
+Run `supabase/migrations/20261116000000_music_catalog.sql` in the Supabase SQL Editor after configuring the project credentials. This creates the public catalog, private likes/playlists, and a public `music-catalog` Storage bucket. Then sign in, open **Upload music**, choose an MP3 (up to 20 MB), and confirm that you have the rights to publish it. Public-bucket audio can be streamed by anyone with its URL; only upload recordings you have permission to share. Storage and bandwidth may incur Supabase/hosting costs.
 
-Generation uses Google's Lyria Interactions API: 30-second requests use `lyria-3-clip-preview`; 60- and 120-second requests use `lyria-3.5`, with the requested duration included in the prompt. Lyria generates MP3 audio. Lyrics supplied in Lyrics to music mode are sent to the model with instructions to preserve them; generated results may not follow those instructions exactly. Check the Google AI Studio model availability, quotas, pricing, and usage terms for your API project before use. The API route allows up to five minutes for provider generation; the hosting plan must support that duration.
-
-You can also download an MP3 from another music-generation tool and import it from the Song projects section of `/library`. The import supports MP3 files up to 10 MB and saves them privately to your Supabase library. Free-plan limits and usage rights are controlled by each provider and may change.
-
-If generation returns **402 Payment Required**, Google requires billing or an eligible plan for that request. For **403**, check the API key and the model's availability for its Google AI Studio project. For **429**, check the project's Gemini API quota and rate limits. Never share API keys or authorization headers.
-
-Pricing is a non-active preview. Checkout and account billing are not connected.
-
-Artist profiles require a signed-in account and the SQL migration below. The profile editor can prefill the artist name and photo from Google account metadata; Google does not provide a bio, genres, location, or website, so add those details and choose **Save artist profile**. Profile fields are stored in `public.artist_profiles` with row-level security. Uploaded avatars are saved in the private `artist-avatars` bucket with per-user Storage policies and signed preview URLs.
+Artist profiles require the `supabase/migrations/20260601000000_artist_profiles_and_avatars.sql` migration. The profile editor can prefill the artist name and photo from Google account metadata; Google does not provide a bio, genres, location, or website, so add those details and choose **Save artist profile**. Profile fields are stored in `public.artist_profiles` with row-level security. Uploaded avatars are saved in the private `artist-avatars` bucket with per-user Storage policies and signed preview URLs.
 
 Existing Google accounts are not automatically populated in `artist_profiles` by the signup trigger. Once the migration is applied, the profile editor can load the Google name/photo as defaults; enter a handle and any other details, then save them. To store the avatar in the private bucket, use **Upload image** and then save the profile.
-
-To save a song idea without generating audio, enter a title and prompt or lyrics on `/create`, then choose **Save idea**. On `/library`, create albums and use each saved project's album selector to organize tracks.
-
-The homepage hero uses an open, layered soundscape waveform aligned with the hero copy instead of a boxed artwork card.
 
 Supabase connection setup is at `/settings/supabase`. Copy `.env.example` to `.env.local`, set a matching Project URL and Publishable key (or legacy anon key) from the same Supabase project, restart the dev server, and use **Check Supabase connection**. Then run `supabase/migrations/20260601000000_artist_profiles_and_avatars.sql` in the Supabase SQL Editor. In Authentication → URL Configuration, allow `http://localhost:3000/auth/callback` during local development and the corresponding deployed callback in production. Keep secret/service-role keys out of client-visible variables and source control.
 

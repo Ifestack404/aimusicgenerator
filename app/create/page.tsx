@@ -1,19 +1,11 @@
 import type { Metadata } from "next";
-import { StudioCreate } from "../../components/studio-home";
-import { genres } from "../../lib/music-options";
+import { MusicUpload } from "../../components/music-platform";
 
 export const metadata: Metadata = {
-  title: "Create Music — Soundforge AI",
-  description: "Shape your next musical idea in the Soundforge creative studio.",
+  title: "Upload Music — Soundforge",
+  description: "Share your original music with independent listeners on Soundforge.",
 };
 
-export default async function CreatePage({
-  searchParams,
-}: {
-  searchParams: Promise<{ genre?: string }>;
-}) {
-  const { genre } = await searchParams;
-  const initialGenre = genres.find((option) => option === genre);
-
-  return <StudioCreate initialGenre={initialGenre} />;
+export default function CreatePage() {
+  return <MusicUpload />;
 }

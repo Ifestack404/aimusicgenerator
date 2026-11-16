@@ -4,20 +4,19 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 import { getSupabaseClient } from "../lib/supabase/client";
+import { MusicExperience } from "./music-platform";
 
 const navigation = [
-  { href: "/create", label: "Create music" },
+  { href: "/create", label: "Upload music" },
   { href: "/library", label: "Library" },
   { href: "/explore", label: "Explore" },
-  { href: "/pricing", label: "Pricing" },
 ];
 
 function Brand() {
   return (
-    <Link className="brand" href="/" aria-label="Soundforge AI home">
+    <Link className="brand" href="/" aria-label="Soundforge home">
       <span className="brand-icon" aria-hidden="true">♪</span>
       <span>sound<span className="brand-accent">forge</span></span>
-      <span className="brand-ai">AI</span>
     </Link>
   );
 }
@@ -175,16 +174,15 @@ function Footer() {
       <div className="footer-inner">
         <div>
           <Brand />
-          <p className="footer-tagline">Your next idea starts here.</p>
+          <p className="footer-tagline">Independent music, made to be heard.</p>
         </div>
         <nav className="footer-links" aria-label="Footer navigation">
-          <Link href="/create">Create music</Link>
+          <Link href="/create">Upload music</Link>
           <Link href="/library">Music library</Link>
           <Link href="/explore">Explore</Link>
-          <Link href="/pricing">Pricing preview</Link>
           <Link href="/settings/supabase">Supabase setup</Link>
         </nav>
-        <p className="footer-copyright">© 2026 Soundforge AI <span>Made for the love of making.</span></p>
+        <p className="footer-copyright">© 2026 Soundforge <span>Made for the love of music.</span></p>
       </div>
     </footer>
   );
@@ -192,10 +190,10 @@ function Footer() {
 
 export default function SiteShell({ children }: Readonly<{ children: ReactNode }>) {
   return (
-    <>
+    <MusicExperience>
       <Header />
-      {children}
+      <div className="site-page-content">{children}</div>
       <Footer />
-    </>
+    </MusicExperience>
   );
 }
