@@ -4,6 +4,8 @@ import { createSupabaseServerClient } from "../../../../lib/supabase/server";
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
 
+const GOOGLE_INTERACTIONS_URL = "https://generativelanguage.googleapis.com/v1beta/interactions";
+const GENERATION_TIMEOUT_MS = 240000;
 const allowedModes = new Set(["text", "lyrics", "instrumental", "custom"]);
 const allowedDurations = new Set([30, 60, 120]);
 const allowedVocals = new Set(["Auto", "Female", "Male", "No vocals"]);
@@ -52,11 +54,15 @@ function errorResponse(message: string, status: number) {
   return NextResponse.json({ error: message }, { status });
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
 export async function POST(request: NextRequest) {
-  const apiKey = process.env.ELEVENLABS_API_KEY?.trim();
+  const apiKey = process.env.GEMINI_API_KEY?.trim();
   if (!apiKey) {
     return errorResponse(
-      "Music generation is not configured. Add ELEVENLABS_API_KEY as a server-only Vercel environment variable and redeploy.",
+      "Music generation is not configured. Add GEMINI_API_KEY as a server-only environment variable and restart or redeploy the app.",
       503,
     );
   }
@@ -116,96 +122,100 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  const durationMs = Number(input.durationSeconds) * 1000;
+  const durationSeconds = Number(input.durationSeconds);
   const styles = getStyles(input);
   const isLyricsMode = input.mode === "lyrics";
   const lyrics = isLyricsMode ? (input.lyrics as string).trim() : "";
-  const prompt = isLyricsMode
-    ? undefined
-    : [
-        isNonEmptyString(input.prompt) ? input.prompt.trim() : "",
-        `Genre: ${styles[0]}.`,
-        `Mood: ${styles[1]}.`,
-        input.mode === "instrumental" || input.vocal === "No vocals"
-          ? "Create an instrumental track with no vocals."
-          : `Create a full song with ${styles[2]}, a memorable vocal melody, and complete instrumentation.`,
-        input.instrument && input.instrument !== "Let the song decide" ? `Lead instrument: ${String(input.instrument)}.` : "",
-        `Creative direction: ${isNonEmptyString(input.creativity) ? input.creativity : "Balanced"}.`,
-      ].filter(Boolean).join(" ");
-
-  const payload = {
-    model_id: "music_v2_5",
-    ...(isLyricsMode
-      ? {
-          composition_plan: {
-            chunks: [{
-              text: lyrics,
-              duration_ms: durationMs,
-              positive_styles: styles,
-              negative_styles: [],
-              context_adherence: "high",
-            }],
-          },
-        }
-      : {
-          prompt,
-          music_length_ms: durationMs,
-          force_instrumental: input.mode === "instrumental" || input.vocal === "No vocals",
-        }),
-  };
+  const isInstrumental = input.mode === "instrumental" || input.vocal === "No vocals";
+  const durationDescription = durationSeconds === 120 ? "about 2 minutes" : `about ${durationSeconds} seconds`;
+  const prompt = [
+    isLyricsMode
+      ? `Create a complete song using the following user-provided lyrics verbatim. Do not rewrite, omit, or add words to the lyrics:\n${lyrics}`
+      : isNonEmptyString(input.prompt) ? input.prompt.trim() : "",
+    `Target duration: ${durationDescription}.`,
+    `Genre: ${styles[0]}.`,
+    `Mood: ${styles[1]}.`,
+    isInstrumental
+      ? "Make this a fully instrumental track with no vocals or sung words."
+      : `Include ${styles[2]} and a memorable vocal melody.`,
+    input.instrument && input.instrument !== "Let the song decide" ? `Lead instrument: ${String(input.instrument)}.` : "",
+    `Creative direction: ${isNonEmptyString(input.creativity) ? input.creativity : "Balanced"}.`,
+    "Create a polished, original, coherent song arrangement.",
+  ].filter(Boolean).join("\n");
+  const model = durationSeconds === 30 ? "lyria-3-clip-preview" : "lyria-3.5";
 
   let providerResponse: Response;
   try {
-    providerResponse = await fetch("https://api.elevenlabs.io/v1/music?output_format=mp3_44100_128", {
+    providerResponse = await fetch(GOOGLE_INTERACTIONS_URL, {
       method: "POST",
       headers: {
-        "xi-api-key": apiKey,
+        "x-goog-api-key": apiKey,
+        "Api-Revision": "2026-05-20",
         "Content-Type": "application/json",
-        Accept: "audio/mpeg",
+        Accept: "application/json",
       },
-      body: JSON.stringify(payload),
+      body: JSON.stringify({ model, input: prompt }),
       cache: "no-store",
-      signal: AbortSignal.timeout(240000),
+      signal: AbortSignal.timeout(GENERATION_TIMEOUT_MS),
     });
   } catch (error: unknown) {
-    console.error("The ElevenLabs music request could not be completed.", error);
+    if (error instanceof Error && error.name === "TimeoutError") {
+      console.error("The Lyria music request timed out.");
+      return errorResponse("Music generation took too long. Please try again with a shorter prompt.", 504);
+    }
+    console.error("The Lyria music request could not be completed.", error);
     return errorResponse("The music service could not be reached. Please try again.", 502);
   }
 
   if (!providerResponse.ok) {
-    const providerBody = await providerResponse.text().catch(() => "");
-    console.error("ElevenLabs music generation failed.", {
-      status: providerResponse.status,
-      response: providerBody.slice(0, 1000),
-    });
+    console.error("Lyria music generation failed.", { status: providerResponse.status, model });
 
     if (providerResponse.status === 401 || providerResponse.status === 403) {
-      return errorResponse("The music provider rejected its API key. Check ELEVENLABS_API_KEY in Vercel.", 502);
+      return errorResponse("Google rejected the API key or the key does not have access to Lyria. Check GEMINI_API_KEY and the model's availability for your account.", 502);
     }
     if (providerResponse.status === 402) {
-      return errorResponse(
-        "ElevenLabs returned 402 Payment Required. Check the account's plan, billing status, available credits, and access to Music v2.5.",
-        402,
-      );
+      return errorResponse("Google requires billing or an eligible plan for this Lyria request. Check the billing status and model access for the API key.", 402);
     }
     if (providerResponse.status === 429) {
-      return errorResponse("The music provider quota or rate limit was reached. Check the ElevenLabs account and try again later.", 429);
+      return errorResponse("The Google API quota or rate limit was reached. Check the Gemini API project limits and try again later.", 429);
     }
-    if (providerResponse.status === 422) {
-      return errorResponse("The music provider could not use this request. Check the lyrics and song settings, then try again.", 422);
+    if (providerResponse.status === 400 || providerResponse.status === 422) {
+      return errorResponse("Lyria could not use this request. Check the song description and settings, then try again.", 422);
     }
-    return errorResponse("The music provider could not generate this song right now. Please try again.", 502);
+    return errorResponse("Lyria could not generate this song right now. Please try again.", 502);
   }
 
-  const audio = await providerResponse.arrayBuffer();
+  let interaction: unknown;
+  try {
+    interaction = await providerResponse.json();
+  } catch (error: unknown) {
+    console.error("Lyria returned an invalid response.", error);
+    return errorResponse("Lyria returned an invalid response. Please try again.", 502);
+  }
+
+  const outputAudio = isRecord(interaction) && isRecord(interaction.output_audio)
+    ? interaction.output_audio
+    : null;
+  const encodedAudio = outputAudio && typeof outputAudio.data === "string"
+    ? outputAudio.data
+    : "";
+  if (!encodedAudio) {
+    const status = isRecord(interaction) && typeof interaction.status === "string"
+      ? interaction.status
+      : "unknown";
+    console.error("Lyria completed without returning audio.", { status, model });
+    return errorResponse("Lyria did not return an audio file. Please try again.", 502);
+  }
+
+  const audio = Buffer.from(encodedAudio, "base64");
   if (audio.byteLength === 0) {
-    console.error("ElevenLabs returned an empty music file.");
-    return errorResponse("The music provider returned an empty audio file. Please try again.", 502);
+    console.error("Lyria returned an empty audio file.");
+    return errorResponse("Lyria returned an empty audio file. Please try again.", 502);
   }
 
   return new NextResponse(audio, {
     headers: {
-      "Content-Type": providerResponse.headers.get("content-type") || "audio/mpeg",
+      "Content-Type": "audio/mpeg",
       "Content-Length": String(audio.byteLength),
       "Cache-Control": "no-store",
       "Content-Disposition": "inline; filename=\"soundforge-song.mp3\"",

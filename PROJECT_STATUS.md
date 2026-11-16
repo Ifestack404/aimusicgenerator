@@ -1,13 +1,13 @@
 # Soundforge AI — Project status
 
-**Status:** Responsive music platform with Supabase Auth, artist profiles, and a private song/album library. ElevenLabs Music API integration and a zero-API-cost MP3 import flow are implemented. The deployed API key is configured, but ElevenLabs returned HTTP 402; API generation requires eligible paid access and credits.
+**Status:** Responsive music platform with Supabase Auth, artist profiles, a private song/album library, MP3 import, and authenticated Google Lyria music generation. Generation uses the server-only `GEMINI_API_KEY`; Lyria model availability, quotas, and charges depend on the configured Google AI Studio project.
 
 ## Completed in this stage
 
 - Preserved the Soundforge name, dark palette, lime accent, and “Your next idea starts here” tagline.
 - Built a responsive home page with hero, navigation, route previews, product steps, and a shared footer.
 - Added working creation mode tabs, genre and mood selection, vocal preference, duration, prompt character count, advanced settings, mobile navigation, and empty-prompt validation.
-- Added authenticated ElevenLabs Music v2.5 song generation, private audio saving, playback, and download controls.
+- Initially added ElevenLabs Music generation, then replaced the provider with Google Lyria in this stage.
 - Added email/password and Google sign-in with Supabase; checkout remains unavailable.
 - Converted the app to strict TypeScript and added a `typecheck` script.
 - Split the single long homepage into dedicated home, create, explore, and pricing routes.
@@ -26,8 +26,9 @@
 - Replaced local-only profile saving with authenticated Supabase profile fetch/upsert, handle conflict feedback, private avatar upload, and signed avatar previews.
 - Added an idempotent SQL migration for `artist_profiles`, per-user RLS, new-user profile creation, private avatar storage, size/type limits, and ownership policies.
 - Added a private song-project, album, and album-track schema with per-user RLS, plus a library UI for saving prompt/lyric ideas and organizing them into albums.
-- Added an authenticated server route for ElevenLabs Music v2.5 generation, lyric-to-song composition plans, private audio upload and persistence, library playback, and download controls.
+- Added private audio upload and persistence, library playback, and download controls for generated songs.
 - Added private MP3 import to the library so users can generate audio on a provider website and upload it without paid API access.
+- Replaced the ElevenLabs music-generation route with Google's Lyria Interactions API, including model selection for 30-second clips versus longer songs, server-only key handling, provider error mapping, and MP3 output.
 - Sanitized `.env.example` so it contains placeholders only.
 
 ## Files changed or added
@@ -38,7 +39,7 @@
 - `app/pricing/page.tsx` — non-active pricing preview.
 - `app/profile/page.tsx` — artist identity and profile editor.
 - `app/library/page.tsx` — private saved song projects and album organization.
-- `app/api/music/generate/route.ts` — authenticated server-side ElevenLabs Music API integration.
+- `app/api/music/generate/route.ts` — authenticated server-side Google Lyria Interactions API integration.
 - `app/settings/supabase/page.tsx` — Supabase setup and connection-status page.
 - `app/auth/page.tsx`, `app/auth/callback/route.ts` — account page and email-confirmation callback.
 - `app/api/supabase/status/route.ts` — server-side Supabase API reachability check.
@@ -64,9 +65,9 @@
 
 ## Known limitations
 
-- The ElevenLabs Music API requires a paid subscriber account. The deployed request currently returns HTTP 402; users without API access can import MP3s made using any free provider website allowance.
+- Lyria API availability, quotas, billing, and usage terms are controlled by Google and the configured API project; verify these before relying on generation as a free service.
 - The music-library and generated-audio migrations must be applied to the Supabase project before saving generated songs or albums.
-- Generation uses paid provider credits and may need Vercel function-duration support up to five minutes.
+- Lyria requests may incur charges and may need Vercel function-duration support up to five minutes.
 - Subscription checkout and production pricing are not implemented.
 - A service-role key was previously entered in the public-key environment variable, then removed. Rotate it in Supabase if that has not already been done. The current public key successfully reaches Supabase Auth.
 - The artist-profile migration was reported applied in Supabase; the music-library migration is separate and must also be applied before song projects/albums can be saved.
@@ -78,12 +79,13 @@
 
 ## Recommended next stage
 
-Configure ElevenLabs pricing/quota and add its server-only API key in Vercel, apply both music-library/audio migrations, then test lyrics-to-song generation, private audio playback, library saving, and album organization. Keep billing disabled until real plan terms and checkout behavior are defined.
+Set `GEMINI_API_KEY` as a server-only environment variable in Vercel (and `.env.local` for local development), verify Lyria model access and quota, apply both music-library/audio migrations, then test text and lyrics generation, private audio playback, library saving, and album organization. Keep billing disabled until real plan terms and checkout behavior are defined.
 
 ## Validation
 
-- `npm.cmd run typecheck` — passed after the ElevenLabs integration.
-- `npm.cmd run build` — passed after the ElevenLabs integration; all app routes compiled.
+- `npm.cmd run typecheck` — passed after the Lyria integration.
+- `npm.cmd run build` — passed after the Lyria integration; all app routes compiled.
+- Live Lyria generation — not tested from this local checkout because `.env.local` does not currently contain `GEMINI_API_KEY`; test after adding the key locally or deploy with it configured in Vercel.
 - Local HTTP checks — `/`, `/create`, `/create?genre=R%26B`, `/explore`, `/pricing`, and `/profile` each returned HTTP 200.
 - Browser checks — required-field and website validation passed; a saved artist profile and selected genre persisted after reload; the mobile profile navigation opened and closed correctly; no horizontal overflow at 390px or 1440px.
 - Hero animation checks — the note mark and all 31 waveform bars rendered; reduced-motion mode minimized animation to 0.01ms; no horizontal overflow at 390px or desktop width.

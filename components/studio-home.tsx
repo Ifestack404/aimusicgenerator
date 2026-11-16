@@ -405,7 +405,7 @@ export function StudioForm({
           <p className="eyebrow"><span className="eyebrow-dot" /> YOUR CREATIVE STUDIO</p>
           <h2 id="studio-title">Start with a feeling.</h2>
         </div>
-        <div className="demo-badge"><span /> ELEVENLABS MUSIC <span className="demo-separator">/</span> PAID CREDITS MAY APPLY</div>
+        <div className="demo-badge"><span /> GOOGLE LYRIA <span className="demo-separator">/</span> API LIMITS OR CHARGES MAY APPLY</div>
       </div>
 
       <form className="studio-panel" onSubmit={handleGenerate} noValidate>
@@ -526,7 +526,7 @@ export function StudioForm({
           </button>
         </div>
         <p className={`form-feedback${feedback ? ` is-${feedback.type}` : ""}`} aria-live="polite" role="status">
-          {feedback?.message || "Song generation uses ElevenLabs and may consume paid credits. Sign in to generate and save songs."}
+          {feedback?.message || "Song generation uses Google Lyria; API limits or charges may apply. Sign in to generate and save songs."}
         </p>
         {generatedAudioUrl && (
           <div className="generated-audio" aria-label="Generated song">
@@ -752,7 +752,7 @@ export default function StudioHome() {
             Find the sound that makes it yours.
           </p>
           <Link className="hero-cta" href="/create">Make your first idea <Icon name="arrow" size={17} /></Link>
-          <p className="hero-footnote"><span /> AI music generation powered by ElevenLabs</p>
+          <p className="hero-footnote"><span /> AI music generation powered by Google Lyria</p>
         </div>
         <SoundArtwork />
       </section>

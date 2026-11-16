@@ -1,6 +1,6 @@
 # Soundforge AI
 
-Soundforge AI is a Next.js App Router project for an AI music creation studio. Its visual direction pairs glassmorphism with a warm recording-studio atmosphere, restrained green accents, and tactile creative controls. Visitors can switch between light and dark themes; their choice is saved in browser storage. Supabase authentication, artist profiles, and a private song and album library are implemented. Signed-in users can generate songs with ElevenLabs Music, preview and download the audio, and save it to their library. The provider API key and database/storage migrations must be configured before generation can work. Payments are not connected.
+Soundforge AI is a Next.js App Router project for an AI music creation studio. Its visual direction pairs glassmorphism with a warm recording-studio atmosphere, restrained green accents, and tactile creative controls. Visitors can switch between light and dark themes; their choice is saved in browser storage. Supabase authentication, artist profiles, and a private song and album library are implemented. Signed-in users can generate songs with Google Lyria, preview and download the audio, and save it to their library. The provider API key and database/storage migrations must be configured before generation can work. Payments are not connected.
 
 ## Run locally
 
@@ -34,7 +34,7 @@ Open [http://localhost:3000](http://localhost:3000) in your browser. To check a 
 - `supabase/migrations/20261110000000_music_library_and_albums.sql` — private song project/lyrics and album tables with per-user RLS.
 - `lib/supabase/config.ts` — validated project URL and publishable-key configuration.
 - `app/api/supabase/status/route.ts` — server-side Supabase API connection check.
-- `app/api/music/generate/route.ts` — authenticated server-side ElevenLabs Music API integration.
+- `app/api/music/generate/route.ts` — authenticated server-side Google Lyria Interactions API integration.
 - `supabase/migrations/20261110000001_generated_audio_storage.sql` — private bucket and per-user policies for generated audio.
 - `.env.example` — template for local Supabase credentials and the server-only music provider key; copy to `.env.local`.
 - `lib/music-options.ts` — shared genre options for the explore and create pages.
@@ -44,13 +44,13 @@ Open [http://localhost:3000](http://localhost:3000) in your browser. To check a 
 
 ## Music generation setup
 
-Run both `supabase/migrations/20261110000000_music_library_and_albums.sql` and `supabase/migrations/20261110000001_generated_audio_storage.sql` in the Supabase SQL Editor for the project configured in the app. Then set `ELEVENLABS_API_KEY` as a server-only environment variable in Vercel (never prefix it with `NEXT_PUBLIC_`) and redeploy. Signed-in users can generate songs from `/create`, preview or download the result, and find saved audio in `/library`.
+Run both `supabase/migrations/20261110000000_music_library_and_albums.sql` and `supabase/migrations/20261110000001_generated_audio_storage.sql` in the Supabase SQL Editor for the project configured in the app. Then set `GEMINI_API_KEY` as a server-only environment variable in Vercel (never prefix it with `NEXT_PUBLIC_`) and redeploy. For local development, add the same variable to `.env.local` and restart the dev server. Signed-in users can generate songs from `/create`, preview or download the result, and find saved audio in `/library`.
 
-Generation uses ElevenLabs Music v2.5 and paid provider credits. Review ElevenLabs pricing and configure a quota before generating. User-supplied lyrics are sent only in Lyrics to music mode. The API route allows up to five minutes for provider generation; the hosting plan must support that duration. Locally, add the key to `.env.local`.
+Generation uses Google's Lyria Interactions API: 30-second requests use `lyria-3-clip-preview`; 60- and 120-second requests use `lyria-3.5`, with the requested duration included in the prompt. Lyria generates MP3 audio. Lyrics supplied in Lyrics to music mode are sent to the model with instructions to preserve them; generated results may not follow those instructions exactly. Check the Google AI Studio model availability, quotas, pricing, and usage terms for your API project before use. The API route allows up to five minutes for provider generation; the hosting plan must support that duration.
 
-If you do not have API access, you can use any music-generation allowance available in the ElevenLabs website, download an MP3, and import it from the Song projects section of `/library`. The import supports MP3 files up to 10 MB and saves them privately to your Supabase library. Free-plan limits and usage rights are controlled by ElevenLabs and may change.
+You can also download an MP3 from another music-generation tool and import it from the Song projects section of `/library`. The import supports MP3 files up to 10 MB and saves them privately to your Supabase library. Free-plan limits and usage rights are controlled by each provider and may change.
 
-If generation returns **402 Payment Required**, the request reached ElevenLabs but the account is not currently authorized to fulfill it. Check the ElevenLabs account plan, billing status, available credits, and access to Music v2.5. Vercel logs include the provider response for additional diagnostics; never share API keys or authorization headers.
+If generation returns **402 Payment Required**, Google requires billing or an eligible plan for that request. For **403**, check the API key and the model's availability for its Google AI Studio project. For **429**, check the project's Gemini API quota and rate limits. Never share API keys or authorization headers.
 
 Pricing is a non-active preview. Checkout and account billing are not connected.
 

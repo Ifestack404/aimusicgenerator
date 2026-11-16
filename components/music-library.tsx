@@ -550,7 +550,7 @@ export default function MusicLibrary() {
                   }}
                 />
               </label>
-              <p className="library-import-note">Create and download a song from ElevenLabs, then import it here. MP3 only, up to 10 MB. Free-plan limits and usage terms are set by ElevenLabs.</p>
+              <p className="library-import-note">Create and download a song with your preferred music tool, then import it here. MP3 only, up to 10 MB. Check the provider's usage terms before sharing or selling generated audio.</p>
               <button className="generate-button" type="submit" disabled={isUploadingAudio || !audioFile || !uploadTitle.trim()}>
                 {isUploadingAudio ? "Importing song…" : "Import song to library"} <span aria-hidden="true">↗</span>
               </button>
